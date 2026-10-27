@@ -23,10 +23,12 @@ SAM merupakan segmentasi, bukan matting transparansi fisik: mask dipisahkan pada
 
 ### Ekspor
 
-- **MOV ProRes 4444:** alpha transparan dengan audio (jika ada); resolusi sumber. Cocok untuk editor yang mendukung ProRes alpha. Bukan lossless; file 1080p berdurasi panjang dapat berukuran puluhan GB. Audio diubah ke PCM untuk kompatibilitas MOV.
-- **MKV FFV1 mask:** alpha grayscale lossless dengan audio sumber (PCM). Putih = subjek, hitam = latar. Pasang sebagai luma matte di atas video sumber dalam editor. Ini mempertahankan video asli sebagai bahan compositing, tanpa re-encode warna sumber.
-- **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak, dengan audio AAC dari 5 detik yang sama. Bukan file transparan final.
-- **PNG:** hasil foto dengan kanal alpha.
+- **MP4 Layar Hijau (Chroma Key):** video H.264/AAC standar dengan latar belakang hijau murni (`#00FF00`). Sangat ringan (~2–5 MB), bisa langsung diputar di semua pemutar Windows/Mac/HP, dan siap pakai di CapCut, Premiere, Canva, dll. dengan 1 klik Chroma Key.
+- **MOV ProRes 4444:** alpha transparan asli dengan audio PCM; resolusi sumber. Cocok untuk editor profesional (Premiere, DaVinci, After Effects) yang mendukung ProRes alpha. File berukuran besar (~100 MB per 20 detik).
+- **MP4 Layar Hitam:** video H.264/AAC standar dengan latar belakang hitam solid.
+- **MKV FFV1 mask:** alpha grayscale lossless dengan audio sumber (PCM). Putih = subjek, hitam = latar. Pasang sebagai luma matte di atas video sumber dalam editor.
+- **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak, dengan audio AAC dari 5 detik yang sama.
+- **PNG:** hasil foto dengan kanal alpha transparan.
 
 Input tidak pernah ditimpa. Output berada di `data/outputs/<job-id>/` dengan nama yang ditentukan pengguna (sanitasi otomatis untuk Windows) beserta `report.json` (durasi, frame, waktu total, FPS pipeline). Hasil foto disimpan sebagai file PNG dengan nama kustom dalam folder unik. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem; output dipertahankan sampai pengguna menghapusnya.
 

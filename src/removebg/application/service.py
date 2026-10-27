@@ -50,7 +50,15 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
     started = time.monotonic()
     frames = 0
     extension = "mov" if export == "transparent" else "mkv" if export == "mask" else "mp4"
-    default_base = "hasil" if export == "transparent" else "mask" if export == "mask" else "video-tanpa-latar"
+    default_base = (
+        "video-transparan"
+        if export == "transparent"
+        else "mask"
+        if export == "mask"
+        else "video-layar-hijau"
+        if export == "mp4_green"
+        else "video-layar-hitam"
+    )
     final = job / f"{safe_name(output_name, default_base)}.{extension}"
     silent = job / f"silent.{extension}"
     preview = job / "preview.mp4"

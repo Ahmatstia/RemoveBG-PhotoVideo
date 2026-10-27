@@ -81,25 +81,31 @@ def download_card(file_path):
     filename = path.name
     ext = path.suffix.lower()
     url = "/gradio_api/file=" + quote(path.as_posix(), safe="/:")
-    badge = (
-        "🎬 Video MP4 (Universal)"
-        if ext == ".mp4"
-        else "🎞 Video MOV ProRes 4444"
-        if ext == ".mov"
-        else "⬛ MKV Mask Lossless"
-        if ext == ".mkv"
-        else "🖼 Foto PNG Transparan"
-    )
+    if ext == ".mov":
+        badge = "✨ Video Transparan (MOV ProRes 4444)"
+        desc = "Background 100% transparan / bolong (hanya objek/manusia). Siap langsung ditumpuk ke timeline CapCut PC, Premiere Pro, After Effects, atau DaVinci Resolve tanpa kunci warna."
+    elif ext == ".mp4":
+        badge = "🟩 Video Layar Hijau / Hitam (MP4)"
+        desc = "Format MP4 standar dengan warna latar solid. Gunakan efek Chroma Key (Kunci Kroma) di aplikasi HP untuk menghilangkan warna latarnya."
+    elif ext == ".mkv":
+        badge = "⬛ Mask Lossless (MKV FFV1)"
+        desc = "Video siluet matte hitam-putih untuk masking komposit profesional."
+    else:
+        badge = "🖼 Foto PNG Transparan"
+        desc = "Foto PNG transparan tanpa latar belakang."
+
     return (
         f'<div class="download-box">'
         f'<div class="download-meta">'
         f'<span class="download-badge">{badge}</span>'
-        f'<span class="download-filesize">{size_mb:.1f} MB</span>'
-        f"</div>"
-        f'<div class="download-filename" style="margin-bottom:12px;">📁 <b>{filename}</b></div>'
+        f'<span class="download-filesize">💾 {size_mb:.1f} MB</span>'
+        f'</div>'
+        f'<div class="download-filename">📁 <b>{filename}</b></div>'
+        f'<p class="download-desc">{desc}</p>'
         f'<a href="{url}" download="{filename}" class="btn-download-hero">'
-        f"⬇ UNDUH FILE SEKARANG ({filename})"
+        f"⬇ UNDUH {filename} ({size_mb:.1f} MB)"
         f"</a>"
+        f'<p class="download-path-tip">📍 File juga tersimpan offline di laptopmu: <code>{path.parent}</code></p>'
         f"</div>"
     )
 
@@ -161,10 +167,10 @@ SUBJECTS = [("🧍 Manusia · otomatis", "Manusia"), ("📦 Objek lain · klik m
 POINTS = [("🟢 Pertahankan", "Pertahankan"), ("🔴 Buang", "Buang")]
 QUALITIES = [("✨ Detail · lebih halus", "Detail"), ("⚡ Cepat", "Cepat")]
 EXPORTS = [
-    ("🎬 MP4 Layar Hijau (Chroma Key) · Siap pakai di CapCut, HP & semua player", "mp4_green"),
-    ("🎬 MOV Transparan (ProRes 4444) · Alpha untuk Premiere, After Effects, DaVinci", "transparent"),
-    ("🎬 MP4 Layar Hitam (Universal H.264) · Kompatibel semua perangkat", "mp4_black"),
-    ("⬛⬜ Mask Hitam-Putih (MKV Lossless) · Luma Matte FFV1", "mask"),
+    ("✨ Transparan Asli (.mov ProRes 4444) · Latar kosong / hanya objek, untuk CapCut PC / Premiere / DaVinci", "transparent"),
+    ("🟩 Layar Hijau (.mp4 Chroma Key) · Background hijau solid, siap pakai di HP / CapCut mobile", "mp4_green"),
+    ("⬛ Layar Hitam (.mp4 H.264) · Background hitam solid, kompatibel semua pemutar", "mp4_black"),
+    ("⬛⬜ Mask Hitam-Putih (.mkv) · Luma Matte FFV1", "mask"),
 ]
 
 
@@ -209,18 +215,25 @@ def build_app():
                             clear = gr.Button("Hapus semua titik", size="sm")
                 with gr.Column(scale=5):
                     with gr.Group(elem_classes="card"):
-                        step(3, "Nama file & proses", "Tentukan format, nama file, lalu klik Proses video.")
-                        export = gr.Radio(EXPORTS, value="mp4_green", show_label=False, elem_classes="choice")
+                        step(3, "Pilih format hasil & nama file", "Pilih Transparan untuk hanya objek/manusia saja, atau Layar Hijau jika butuh green screen.")
+                        export = gr.Radio(EXPORTS, value="transparent", label="Pilihan Format Hasil Video", elem_classes="choice")
+                        gr.HTML(
+                            '<div class="hint" style="margin-top:6px;margin-bottom:12px;">'
+                            '💡 <b>Panduan Hasil:</b><br>'
+                            '• <b>✨ Transparan Asli (.mov ProRes)</b>: Latar belakang 100% bolong / transparan (hanya manusia atau objek). Langsung tempel ke video apa pun tanpa perlu chroma key.<br>'
+                            '• <b>🟩 Layar Hijau (.mp4)</b>: Memakai background hijau solid jika aplikasi video di HP Anda (CapCut mobile/InShot) mewajibkan format MP4 dan fitur Chroma Key.'
+                            '</div>'
+                        )
                         video_name = gr.Textbox(label="Nama file hasil", placeholder="contoh: video-promo-final", max_lines=1,
-                                                info="Tanpa ekstensi. Format (.mp4, .mov, atau .mkv) ditambahkan otomatis.")
+                                                info="Tanpa ekstensi. Format (.mov atau .mp4) ditambahkan otomatis.")
                         start = gr.Button("🚀 Proses video", variant="primary", size="lg")
                         cancel = gr.Button("Batalkan", variant="stop", size="sm")
-                        status = gr.Markdown("Siap. Pilih video, atur nama file, lalu klik **Proses video**.", elem_classes="status")
+                        status = gr.Markdown("Siap. Pilih video, tentukan format & nama file, lalu klik **Proses video**.", elem_classes="status")
                     with gr.Group(elem_classes="card"):
                         gr.HTML('<div class="step-title">Hasil</div><p class="step-sub" style="margin-left:0">Preview hanya <b>5 detik pertama</b> (pola kotak = transparan). Unduh file lengkap melalui tombol di bawah.</p>')
                         preview = gr.HTML(EMPTY_PLAYER)
                         result_card = gr.HTML(EMPTY_DOWNLOAD)
-                        result_btn = gr.DownloadButton("⬇ Unduh File Video", variant="primary", size="lg", visible=False)
+                        result_btn = gr.DownloadButton("⬇ Unduh Alternatif File Video", variant="secondary", size="lg", visible=False)
             mode.change(toggle_subject, mode, [quality, object_box], queue=False)
             source.change(default_name, source, video_name, queue=False)
             source.change(load_source, source, [frame, original, points, details], concurrency_id="gpu")
