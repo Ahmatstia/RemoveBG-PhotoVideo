@@ -111,4 +111,21 @@ button.stop:hover { background:#3e040c !important; }
 .player video { width:100%; max-height:460px; border-radius:16px; background:#000; border:1px solid #3a2327; accent-color:#f01d36; }
 .player p { margin:8px 2px 0; font-size:13px; color:#ffb454; }
 .player.empty { padding:42px 16px; text-align:center; color:#8c7a7c; border:1.5px dashed #3a2327; border-radius:16px; background:#100a0b; }
+
+/* ---------- Download Card & Hero Download Button ---------- */
+.download-box { margin-top: 14px; padding: 18px 20px; border-radius: 18px;
+  background: linear-gradient(135deg, rgba(240,29,54,.15), rgba(255,122,47,.08)), #150e10;
+  border: 1.5px solid rgba(240,29,54,.45); box-shadow: 0 10px 30px -10px rgba(240,29,54,.4); }
+.download-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.download-badge { padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 800; text-transform: uppercase;
+  background: #f01d36; color: #fff; letter-spacing: .03em; }
+.download-filename { font-size: 16px; font-weight: 700; color: #fff; word-break: break-all; }
+.download-filesize { font-size: 13px; color: #ffb454; font-weight: 600; }
+.btn-download-hero { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
+  padding: 16px 24px; border-radius: 14px; text-decoration: none !important;
+  font-size: 16px; font-weight: 800; color: #ffffff !important; letter-spacing: .02em;
+  background: linear-gradient(135deg, #ff2d46 0%, #d10f2a 55%, #ff7a2f 130%);
+  box-shadow: 0 8px 25px -6px rgba(255,45,70,.85); transition: all .2s; }
+.btn-download-hero:hover { transform: translateY(-2px); box-shadow: 0 14px 35px -6px rgba(255,45,70,1); filter: brightness(1.1); color: #fff !important; }
+.btn-download-hero:active { transform: translateY(0); }
 """

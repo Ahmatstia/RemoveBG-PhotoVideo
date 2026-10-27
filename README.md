@@ -28,7 +28,7 @@ SAM merupakan segmentasi, bukan matting transparansi fisik: mask dipisahkan pada
 - **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak, dengan audio AAC dari 5 detik yang sama. Bukan file transparan final.
 - **PNG:** hasil foto dengan kanal alpha.
 
-Input tidak pernah ditimpa. Output berada di `data/outputs/<job-id>/`, beserta `report.json` (durasi, frame, waktu total, FPS pipeline). Hasil foto disimpan sebagai file PNG dengan ID unik. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem; output dipertahankan sampai pengguna menghapusnya.
+Input tidak pernah ditimpa. Output berada di `data/outputs/<job-id>/` dengan nama yang ditentukan pengguna (sanitasi otomatis untuk Windows) beserta `report.json` (durasi, frame, waktu total, FPS pipeline). Hasil foto disimpan sebagai file PNG dengan nama kustom dalam folder unik. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem; output dipertahankan sampai pengguna menghapusnya.
 
 Pipeline membaca frame berurutan, mempertahankan timestamp termasuk VFR, menangani rotasi 90°, dan tidak menampung semua frame di memori. Video HDR ditolak agar tidak terjadi perubahan warna tanpa pemberitahuan. Input/output AI memakai RGB/alpha 8-bit; ekspor ProRes 10-bit tidak menciptakan kembali detail 10-bit yang hilang. Tidak ada klaim hasil identik dengan sumber atau garansi real-time.
 

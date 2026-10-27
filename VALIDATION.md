@@ -2,7 +2,7 @@
 
 Perangkat: NVIDIA GeForce RTX 3050 Laptop, VRAM 6144 MiB; Windows, Python 3.11.9, PyTorch 2.11.0+cu128. Versi dependensi lengkap tercatat di requirements-lock.txt.
 
-- 10 tes pytest lulus: alpha ProRes, mask lossless, timestamp VFR, pembatalan, cleanup kegagalan, PNG RGBA, batas riwayat tracking, validasi titik, checkerboard, audio/preview dan rotasi (beberapa aspek diuji dalam satu tes).
+- 11 tes pytest lulus: alpha ProRes, mask lossless, timestamp VFR, pembatalan, cleanup kegagalan, PNG RGBA, batas riwayat tracking, validasi titik, checkerboard, audio/preview, rotasi, dan penamaan file kustom/sanitasi.
 - Ruff lulus; modul dapat dikompilasi dan konfigurasi UI dapat dibangun.
 - Inferensi nyata RVM dan SAM 2 Small dijalankan pada CUDA, masing-masing 24 frame foto astronaut berulang. Riwayat SAM diverifikasi tidak melebihi 16 frame tracking + frame conditioning; hanya satu input frame disimpan.
 - Video manusia sintetis 1920×1080, 30 frame / satu detik berhasil diekspor ke ProRes 4444. Alur upload, proses, preview dan link unduh diperiksa melalui browser. Uji UI pertama memerlukan 16,6 detik; uji kedua 9,4 detik. Ini termasuk overhead dan preview, bukan klaim throughput real-time. Pekerjaan pengujian lain juga sempat berjalan di perangkat yang sama.

@@ -154,3 +154,50 @@ def test_rotated_video(tmp_path):
     info, rgb = inspect_video(rotated)
     assert (info.width, info.height) == (48, 64)
     assert rgb.shape == (64, 48, 3)
+
+
+def test_custom_output_names(source, tmp_path):
+    result, _, _ = service.run_video(source, "Manusia", "Detail", [], "transparent", False, threading.Event(),
+                                     lambda *_: None, lambda *_: Matte(), output_name="Video Promo: Final?.mov")
+    assert result.endswith("Video Promo Final.mov")
+    mask, _, _ = service.run_video(source, "Manusia", "Detail", [], "mask", False, threading.Event(),
+                                   lambda *_: None, lambda *_: Matte(), output_name="silent")
+    assert mask.endswith("silent-hasil.mkv")
+    default, _, _ = service.run_video(source, "Manusia", "Detail", [], "mask", False, threading.Event(),
+                                      lambda *_: None, lambda *_: Matte(), output_name="  ../..  ")
+    assert default.endswith("mask.mkv")
+    photo = tmp_path / "photo.png"
+    Image.new("RGB", (64, 48), "red").save(photo)
+    named = service.run_photo(photo, "Manusia", "Detail", [], lambda *_: Matte(), output_name="foto-produk")
+    assert named.endswith("foto-produk.png") and Image.open(named).mode == "RGBA"
+    assert service.safe_name("con", "x") == "con-hasil"
+    assert service.safe_name("", "x") == "x"
+
+
+def test_mp4_green_and_black_export(source):
+    result_green, _, report_green = service.run_video(
+        source, "Manusia", "Detail", [], "mp4_green", False,
+        threading.Event(), lambda *_: None, lambda *_: Matte(), output_name="green-test",
+    )
+    assert result_green.endswith("green-test.mp4")
+    assert report_green["frames"] == 4
+    with av.open(result_green) as container:
+        assert len(container.streams.video) == 1
+        frame = next(container.decode(video=0)).to_ndarray(format="rgb24")
+        # In Matte(), left half has alpha 0 -> background color (green: 0, 255, 0)
+        assert frame[:, :30, 1].mean() > 240
+        assert frame[:, :30, 0].mean() < 15
+        assert frame[:, :30, 2].mean() < 15
+
+    result_black, _, _ = service.run_video(
+        source, "Manusia", "Detail", [], "mp4_black", False,
+        threading.Event(), lambda *_: None, lambda *_: Matte(), output_name="black-test",
+    )
+    assert result_black.endswith("black-test.mp4")
+    with av.open(result_black) as container:
+        assert len(container.streams.video) == 1
+        frame = next(container.decode(video=0)).to_ndarray(format="rgb24")
+        # In Matte(), left half has alpha 0 -> background color (black: 0, 0, 0)
+        assert frame[:, :30].mean() < 15
+
+

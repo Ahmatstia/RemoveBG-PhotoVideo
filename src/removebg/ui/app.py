@@ -54,7 +54,7 @@ def clear_points(original):
 
 
 def clock(seconds):
-    seconds = int(round(seconds))
+    seconds = round(seconds)
     return f"{seconds // 60}:{seconds % 60:02d}"
 
 
@@ -70,26 +70,63 @@ def video_player(path):
             f'controlslist="nodownload"></video><p>🔊 Gunakan ikon speaker pada pemutar untuk mute atau mengatur volume.</p></div>')
 
 
-def process_video(path, mode, quality, points, export, preview_only, request: gr.Request, progress=gr.Progress()):  # noqa: B008 - Gradio injects progress via this default.
+EMPTY_DOWNLOAD = '<div class="download-placeholder" style="padding:16px;text-align:center;color:#8c7a7c;font-size:13px;border:1.5px dashed #3a2327;border-radius:14px;background:#100a0b;margin-top:12px;">Tombol unduh akan muncul di sini setelah proses selesai.</div>'
+
+
+def download_card(file_path):
+    if not file_path or not Path(file_path).exists():
+        return EMPTY_DOWNLOAD
+    path = Path(file_path)
+    size_mb = path.stat().st_size / (1024 * 1024)
+    filename = path.name
+    ext = path.suffix.lower()
+    url = "/gradio_api/file=" + quote(path.as_posix(), safe="/:")
+    badge = (
+        "🎬 Video MP4 (Universal)"
+        if ext == ".mp4"
+        else "🎞 Video MOV ProRes 4444"
+        if ext == ".mov"
+        else "⬛ MKV Mask Lossless"
+        if ext == ".mkv"
+        else "🖼 Foto PNG Transparan"
+    )
+    return (
+        f'<div class="download-box">'
+        f'<div class="download-meta">'
+        f'<span class="download-badge">{badge}</span>'
+        f'<span class="download-filesize">{size_mb:.1f} MB</span>'
+        f"</div>"
+        f'<div class="download-filename" style="margin-bottom:12px;">📁 <b>{filename}</b></div>'
+        f'<a href="{url}" download="{filename}" class="btn-download-hero">'
+        f"⬇ UNDUH FILE SEKARANG ({filename})"
+        f"</a>"
+        f"</div>"
+    )
+
+
+def default_name(path):
+    return f"{Path(path).stem}-tanpa-latar" if path else ""
+
+
+def process_video(path, mode, quality, points, export, name, request: gr.Request, progress=gr.Progress()):  # noqa: B008 - Gradio injects progress via this default.
     if not path:
         raise gr.Error("Pilih video terlebih dahulu.")
     cancel = threading.Event()
     running[request.session_hash] = cancel
     try:
         result, preview, report = run_video(
-            path, mode, quality, points, export, preview_only, cancel,
+            path, mode, quality, points, export, False, cancel,
             lambda fraction, description: progress(fraction, desc=description),
+            output_name=name,
         )
         done = f"{report['frames']} frame · {report['wall_seconds']:.1f} detik proses · {report['pipeline_fps']:.1f} fps"
-        if preview_only:
-            status = (f"⏱ **Uji 5 detik selesai** ({done}). Ini hanya cuplikan awal, bukan hasil akhir. "
-                      "Klik **🚀 Proses video lengkap** untuk memproses seluruh video.")
-        else:
-            status = (f"✅ **Video lengkap selesai** · durasi {clock(report['processed_seconds'])} · {done}. "
-                      "File di **Unduh hasil** berisi seluruh durasi; preview di atas hanya 5 detik pertama.")
-        return result, video_player(preview), status
+        status = (f"✅ **Selesai** · `{Path(result).name}` · durasi {clock(report['processed_seconds'])} · {done}. "
+                  "Klik tombol merah besar di bawah untuk mengunduh.")
+        size_mb = Path(result).stat().st_size / (1024 * 1024)
+        btn_update = gr.update(value=str(result), label=f"⬇ Unduh {Path(result).name} ({size_mb:.1f} MB)", visible=True)
+        return download_card(result), btn_update, video_player(preview), status
     except Cancelled:
-        return None, EMPTY_PLAYER, "Dibatalkan. File sumber tidak diubah."
+        return EMPTY_DOWNLOAD, gr.update(visible=False), EMPTY_PLAYER, "Dibatalkan. File sumber tidak diubah."
     except torch.cuda.OutOfMemoryError as error:
         raise gr.Error("VRAM tidak cukup. Tutup aplikasi GPU lain atau gunakan mode Cepat.") from error
     except Exception as error:
@@ -107,12 +144,14 @@ def stop(request: gr.Request):
     return "Tidak ada proses aktif pada sesi ini."
 
 
-def process_photo(path, mode, quality, points):
+def process_photo(path, mode, quality, points, name):
     if not path:
         raise gr.Error("Pilih foto terlebih dahulu.")
     try:
-        result = run_photo(path, mode, quality, points)
-        return result, result
+        result = run_photo(path, mode, quality, points, output_name=name)
+        size_mb = Path(result).stat().st_size / (1024 * 1024)
+        btn_update = gr.update(value=str(result), label=f"⬇ Unduh {Path(result).name} ({size_mb:.1f} MB)", visible=True)
+        return result, download_card(result), btn_update
     except Exception as error:
         logger.exception("Photo processing failed")
         raise gr.Error(str(error)) from error
@@ -121,8 +160,12 @@ def process_photo(path, mode, quality, points):
 SUBJECTS = [("🧍 Manusia · otomatis", "Manusia"), ("📦 Objek lain · klik manual", "Objek umum")]
 POINTS = [("🟢 Pertahankan", "Pertahankan"), ("🔴 Buang", "Buang")]
 QUALITIES = [("✨ Detail · lebih halus", "Detail"), ("⚡ Cepat", "Cepat")]
-EXPORTS = [("🎬 Video transparan · MOV ProRes 4444 + audio", "transparent"),
-           ("⬛⬜ Mask hitam-putih · MKV lossless + audio", "mask")]
+EXPORTS = [
+    ("🎬 MP4 Layar Hijau (Chroma Key) · Siap pakai di CapCut, HP & semua player", "mp4_green"),
+    ("🎬 MOV Transparan (ProRes 4444) · Alpha untuk Premiere, After Effects, DaVinci", "transparent"),
+    ("🎬 MP4 Layar Hitam (Universal H.264) · Kompatibel semua perangkat", "mp4_black"),
+    ("⬛⬜ Mask Hitam-Putih (MKV Lossless) · Luma Matte FFV1", "mask"),
+]
 
 
 def step(number, title, subtitle):
@@ -166,24 +209,30 @@ def build_app():
                             clear = gr.Button("Hapus semua titik", size="sm")
                 with gr.Column(scale=5):
                     with gr.Group(elem_classes="card"):
-                        step(3, "Pilih hasil & mulai", "Coba 5 detik dulu untuk memeriksa tepian, lalu proses seluruh video.")
-                        export = gr.Radio(EXPORTS, value="transparent", show_label=False, elem_classes="choice")
-                        with gr.Row():
-                            trial = gr.Button("⏱ Uji 5 detik", size="lg")
-                            start = gr.Button("🚀 Proses video lengkap", variant="primary", size="lg")
+                        step(3, "Nama file & proses", "Tentukan format, nama file, lalu klik Proses video.")
+                        export = gr.Radio(EXPORTS, value="mp4_green", show_label=False, elem_classes="choice")
+                        video_name = gr.Textbox(label="Nama file hasil", placeholder="contoh: video-promo-final", max_lines=1,
+                                                info="Tanpa ekstensi. Format (.mp4, .mov, atau .mkv) ditambahkan otomatis.")
+                        start = gr.Button("🚀 Proses video", variant="primary", size="lg")
                         cancel = gr.Button("Batalkan", variant="stop", size="sm")
-                        status = gr.Markdown("Siap. Mulai dengan **Uji 5 detik**.", elem_classes="status")
+                        status = gr.Markdown("Siap. Pilih video, atur nama file, lalu klik **Proses video**.", elem_classes="status")
                     with gr.Group(elem_classes="card"):
-                        gr.HTML('<div class="step-title">Hasil</div><p class="step-sub" style="margin-left:0">Preview hanya <b>5 detik pertama</b> (pola kotak = transparan). Hasil akhir seluruh durasi ada di tombol unduh di bawahnya.</p>')
+                        gr.HTML('<div class="step-title">Hasil</div><p class="step-sub" style="margin-left:0">Preview hanya <b>5 detik pertama</b> (pola kotak = transparan). Unduh file lengkap melalui tombol di bawah.</p>')
                         preview = gr.HTML(EMPTY_PLAYER)
-                        result = gr.File(label="⬇ Unduh hasil", interactive=False)
+                        result_card = gr.HTML(EMPTY_DOWNLOAD)
+                        result_btn = gr.DownloadButton("⬇ Unduh File Video", variant="primary", size="lg", visible=False)
             mode.change(toggle_subject, mode, [quality, object_box], queue=False)
+            source.change(default_name, source, video_name, queue=False)
             source.change(load_source, source, [frame, original, points, details], concurrency_id="gpu")
             frame.select(select_point, [original, points, action], [frame, points], queue=False)
             clear.click(clear_points, original, [frame, points], queue=False)
-            inputs = [source, mode, quality, points, export]
-            start.click(process_video, inputs + [gr.State(False)], [result, preview, status], concurrency_id="gpu", concurrency_limit=1)
-            trial.click(process_video, inputs + [gr.State(True)], [result, preview, status], concurrency_id="gpu", concurrency_limit=1)
+            start.click(
+                process_video,
+                [source, mode, quality, points, export, video_name],
+                [result_card, result_btn, preview, status],
+                concurrency_id="gpu",
+                concurrency_limit=1,
+            )
             cancel.click(stop, outputs=status, queue=False)
         with gr.Tab("🖼 Foto"):
             photo_original = gr.State()
@@ -203,15 +252,25 @@ def build_app():
                             photo_action = gr.Radio(POINTS, value="Pertahankan", label="Jenis titik", elem_classes="choice")
                             photo_clear = gr.Button("Hapus semua titik", size="sm")
                 with gr.Column(scale=5), gr.Group(elem_classes="card"):
-                    step(3, "Hapus latar", "Hasilnya PNG transparan.")
+                    step(3, "Nama file & proses", "Tentukan nama file hasil, lalu klik Hapus latar foto.")
+                    photo_name = gr.Textbox(label="Nama file hasil", placeholder="contoh: foto-produk", max_lines=1,
+                                            info="Tanpa ekstensi. .png ditambahkan otomatis. Karakter terlarang dibuang.")
                     photo_start = gr.Button("🚀 Hapus latar foto", variant="primary", size="lg")
                     photo_result = gr.Image(label="Hasil PNG transparan", type="filepath", interactive=False)
-                    photo_download = gr.File(label="⬇ Unduh PNG", interactive=False)
+                    photo_card = gr.HTML(EMPTY_DOWNLOAD)
+                    photo_download = gr.DownloadButton("⬇ Unduh PNG", variant="primary", size="lg", visible=False)
             photo_mode.change(lambda subject: gr.update(visible=subject == "Objek umum"), photo_mode, photo_object_box, queue=False)
+            photo.change(default_name, photo, photo_name, queue=False)
             photo.change(lambda path: load_source(path, True), photo, [photo_frame, photo_original, photo_points, photo_info], concurrency_id="gpu")
             photo_frame.select(select_point, [photo_original, photo_points, photo_action], [photo_frame, photo_points], queue=False)
             photo_clear.click(clear_points, photo_original, [photo_frame, photo_points], queue=False)
-            photo_start.click(process_photo, [photo, photo_mode, gr.State("Detail"), photo_points], [photo_result, photo_download], concurrency_id="gpu", concurrency_limit=1)
+            photo_start.click(
+                process_photo,
+                [photo, photo_mode, gr.State("Detail"), photo_points, photo_name],
+                [photo_result, photo_card, photo_download],
+                concurrency_id="gpu",
+                concurrency_limit=1,
+            )
         gr.HTML('<div class="footer-note">Berjalan lokal di 127.0.0.1 · Model diunduh saat pertama dipakai · Input video SDR, hasil AI 8-bit · Rambut halus, kaca, dan motion blur dapat memerlukan koreksi · Hasil tersimpan di <code>data/outputs</code></div>')
     return app
 

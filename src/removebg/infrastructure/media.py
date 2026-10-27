@@ -59,12 +59,24 @@ def checkerboard(foreground, alpha):
     return np.rint(foreground * weight + board[..., None] * (1 - weight)).astype(np.uint8)
 
 
+def composite_color(foreground, alpha, color):
+    weight = alpha[..., None].astype(np.float32) / 255.0
+    bg = np.array(color, dtype=np.float32)
+    return np.rint(foreground.astype(np.float32) * weight + bg * (1.0 - weight)).astype(np.uint8)
+
+
 class VideoWriter:
     def __init__(self, path, width, height, rate, kind):
         self.container = av.open(str(path), "w")
         self.kind = kind
         try:
-            codec = {"transparent": "prores_ks", "mask": "ffv1", "preview": "libx264"}[kind]
+            codec = {
+                "transparent": "prores_ks",
+                "mask": "ffv1",
+                "preview": "libx264",
+                "mp4_green": "libx264",
+                "mp4_black": "libx264",
+            }[kind]
             self.stream = self.container.add_stream(codec, rate=rate)
             self.stream.width = width
             self.stream.height = height

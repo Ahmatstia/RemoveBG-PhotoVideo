@@ -1,7 +1,9 @@
 import json
+import re
 import shutil
 import time
 import uuid
+from pathlib import Path
 
 import av
 import numpy as np
@@ -13,14 +15,31 @@ from removebg.infrastructure.media import (
     VideoWriter,
     attach_audio,
     checkerboard,
+    composite_color,
     frame_rgb,
     inspect_video,
     read_photo,
 )
 from removebg.infrastructure.models import create_model, release_gpu
 
+RESERVED_NAMES = {"silent", "preview", "preview-silent", "report"}
+WINDOWS_DEVICES = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
 
-def run_video(path, mode, quality, points, export, preview_only, cancel, progress, model_factory=create_model):
+
+def safe_name(name, default):
+    """Turn user text into a safe Windows file stem (no extension, no path, no reserved names)."""
+    text = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", str(name or "")).strip().strip(".")
+    if Path(text).suffix.lower() in {".mov", ".mkv", ".mp4", ".png"}:
+        text = Path(text).stem
+    text = text.strip().strip(".")[:100].strip()
+    if not text:
+        return default
+    if text.lower() in RESERVED_NAMES or text.lower() in WINDOWS_DEVICES:
+        text += "-hasil"
+    return text
+
+
+def run_video(path, mode, quality, points, export, preview_only, cancel, progress, model_factory=create_model, output_name=None):
     info, _ = inspect_video(path)
     if mode == "Objek umum":
         validate_points(points, info.width, info.height)
@@ -30,8 +49,10 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
     model = writer = preview_writer = None
     started = time.monotonic()
     frames = 0
-    final = job / ("hasil.mov" if export == "transparent" else "mask.mkv")
-    silent = job / ("silent.mov" if export == "transparent" else "silent.mkv")
+    extension = "mov" if export == "transparent" else "mkv" if export == "mask" else "mp4"
+    default_base = "hasil" if export == "transparent" else "mask" if export == "mask" else "video-tanpa-latar"
+    final = job / f"{safe_name(output_name, default_base)}.{extension}"
+    silent = job / f"silent.{extension}"
     preview = job / "preview.mp4"
     silent_preview = job / "preview-silent.mp4"
     try:
@@ -67,7 +88,16 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
                 if rgb.shape[:2] != (info.height, info.width):
                     raise ValueError("Resolusi berubah di tengah video; pisahkan video per klip.")
                 foreground, alpha = model.process(rgb)
-                pixels = np.dstack((foreground, alpha)) if export == "transparent" else alpha
+                if export == "transparent":
+                    pixels = np.dstack((foreground, alpha))
+                elif export == "mask":
+                    pixels = alpha
+                elif export == "mp4_green":
+                    pixels = composite_color(foreground, alpha, (0, 255, 0))
+                elif export == "mp4_black":
+                    pixels = composite_color(foreground, alpha, (0, 0, 0))
+                else:
+                    pixels = np.dstack((foreground, alpha))
                 writer.write(pixels, timestamp)
                 if timestamp < 5:
                     display = Image.fromarray(checkerboard(foreground, alpha)).resize(preview_size, Image.Resampling.LANCZOS)
@@ -91,7 +121,8 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
             raise Cancelled()
         progress(0.99, "Menyelesaikan ekspor dan audio…")
         if info.has_audio:
-            attach_audio(silent, path, final, origin, end, cancel)
+            audio_codec = "aac" if extension == "mp4" else "pcm_s16le"
+            attach_audio(silent, path, final, origin, end, cancel, audio_codec)
             silent.unlink()
             attach_audio(silent_preview, path, preview, origin, min(end, 5.0), cancel, "aac")
             silent_preview.unlink()
@@ -119,7 +150,7 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
         release_gpu()
 
 
-def run_photo(path, mode, quality, points, model_factory=create_model):
+def run_photo(path, mode, quality, points, model_factory=create_model, output_name=None):
     rgb = read_photo(path)
     if min(rgb.shape[:2]) > 2160 or max(rgb.shape[:2]) > 3840:
         raise ValueError("Foto maksimal 3840×2160 / 2160×3840 untuk penggunaan VRAM yang terkendali.")
@@ -130,7 +161,9 @@ def run_photo(path, mode, quality, points, model_factory=create_model):
         model = model_factory(mode, quality, points)
         foreground, alpha = model.process(rgb)
         prepare_dirs()
-        output = OUTPUTS / (uuid.uuid4().hex[:12] + ".png")
+        folder = OUTPUTS / uuid.uuid4().hex[:12]
+        folder.mkdir()
+        output = folder / (safe_name(output_name, "foto") + ".png")
         Image.fromarray(np.dstack((foreground, alpha))).save(output)
         return str(output)
     finally:
