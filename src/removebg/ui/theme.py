@@ -86,49 +86,47 @@ body, .dark, gradio-app { background:#0b0707 !important; }
 .meta { color:#ffb454; font-weight:600; font-size:14px; }
 
 /* ---------- Choice cards (radio) ---------- */
-.choice .wrap { gap:10px !important; flex-wrap:wrap; }
-.choice label { flex:1 1 200px; border:1.5px solid #3a2327 !important; border-radius:14px !important; padding:14px 16px !important;
-  background:#100a0b !important; cursor:pointer; transition: all .2s; font-weight:700; }
-.choice label:hover { border-color:#f01d36 !important; transform: translateY(-2px); }
-.choice label.selected { background: linear-gradient(135deg, rgba(240,29,54,.28), rgba(255,122,47,.12)) !important;
-  border-color:#ff2d46 !important; box-shadow: 0 8px 24px -12px rgba(255,45,70,.9); color:#fff !important; }
+.choice .wrap { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)) !important; gap: 8px !important; }
+.choice label { border: 1.5px solid #2a181b !important; border-radius: 12px !important; padding: 12px 14px !important;
+  background: #11090b !important; cursor: pointer; transition: all .2s; font-weight: 700; font-size: 13.5px;
+  display: flex !important; align-items: center; justify-content: flex-start; text-align: left; }
+.choice label:hover { border-color: #ff2d46 !important; background: #180d10 !important; transform: translateY(-1px); }
+.choice label.selected { background: linear-gradient(135deg, rgba(255,45,70,.22), rgba(255,122,47,.10)) !important;
+  border-color: #ff2d46 !important; box-shadow: 0 4px 18px -6px rgba(255,45,70,.7); color: #fff !important; }
 
 /* ---------- Buttons ---------- */
-button.primary { font-weight:800 !important; letter-spacing:.01em; box-shadow: 0 12px 30px -12px rgba(240,29,54,.9);
-  transition: transform .15s, box-shadow .2s, filter .2s !important; }
-button.primary:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 18px 40px -12px rgba(240,29,54,1); }
+button.primary { font-weight: 800 !important; letter-spacing: .01em; box-shadow: 0 10px 25px -10px rgba(240,29,54,.9);
+  transition: transform .15s, box-shadow .2s, filter .2s !important; border-radius: 12px !important; }
+button.primary:hover { transform: translateY(-2px) scale(1.01); box-shadow: 0 16px 35px -10px rgba(240,29,54,1); }
 button.primary:active { transform: translateY(0) scale(.99); }
-button.secondary { border:1.5px solid #5a2a31 !important; background:#1b1214 !important; color:#ffd0d5 !important; font-weight:700; transition: all .2s; }
-button.secondary:hover { border-color:#ff5566 !important; background:#2a1519 !important; transform: translateY(-1px); }
-button.stop { background: transparent !important; border:1.5px solid #6b2a30 !important; color:#ff8995 !important; font-weight:700; }
-button.stop:hover { background:#3e040c !important; }
+button.secondary { border: 1.5px solid #4a2127 !important; background: #180f11 !important; color: #ffd0d5 !important; font-weight: 700; border-radius: 12px !important; transition: all .2s; }
+button.secondary:hover { border-color: #ff5566 !important; background: #251317 !important; }
+button.stop { background: transparent !important; border: 1.5px solid #5a2026 !important; color: #ff8995 !important; font-weight: 700; border-radius: 12px !important; }
+button.stop:hover { background: #32080e !important; }
 
 /* ---------- Status / output ---------- */
-.status { padding:12px 16px; border-radius:14px; background:#100a0b; border:1px solid #2e1d20; color:#f1dede; }
-.upload-zone { border:2px dashed #5a2a31 !important; border-radius:18px !important; background:#100a0b !important; transition: all .25s; }
-.upload-zone:hover { border-color:#ff2d46 !important; background: rgba(240,29,54,.07) !important; }
-.footer-note { text-align:center; color:#7d6a6c; font-size:13px; padding:18px 0 4px; }
-.player video { width:100%; max-height:460px; border-radius:16px; background:#000; border:1px solid #3a2327; accent-color:#f01d36; }
-.player p { margin:8px 2px 0; font-size:13px; color:#ffb454; }
-.player.empty { padding:42px 16px; text-align:center; color:#8c7a7c; border:1.5px dashed #3a2327; border-radius:16px; background:#100a0b; }
+.status { padding: 10px 14px; border-radius: 12px; background: #11090b; border: 1px solid #281619; color: #f1dede; font-size: 13.5px; }
+.upload-zone { border: 2px dashed #4a2127 !important; border-radius: 16px !important; background: #11090b !important; transition: all .2s; }
+.upload-zone:hover { border-color: #ff2d46 !important; background: rgba(240,29,54,.06) !important; }
+.footer-note { text-align: center; color: #7d6a6c; font-size: 12.5px; padding: 16px 0 4px; }
+.player video { width: 100%; max-height: 420px; border-radius: 14px; background: #000; border: 1px solid #2a181b; }
+.player.empty { padding: 36px 16px; text-align: center; color: #7d686b; font-size: 13px; border: 1.5px dashed #2a181b; border-radius: 14px; background: #11090b; }
 
-/* ---------- Download Card & Hero Download Button ---------- */
-.download-box { margin-top: 14px; padding: 20px 22px; border-radius: 18px;
-  background: linear-gradient(135deg, rgba(240,29,54,.18), rgba(255,122,47,.10)), #150e10;
-  border: 1.5px solid rgba(240,29,54,.55); box-shadow: 0 10px 32px -10px rgba(240,29,54,.45); }
-.download-meta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-.download-badge { padding: 5px 12px; border-radius: 8px; font-size: 13px; font-weight: 800; text-transform: uppercase;
-  background: #f01d36; color: #fff; letter-spacing: .03em; box-shadow: 0 4px 12px -3px rgba(240,29,54,.8); }
-.download-filename { font-size: 17px; font-weight: 800; color: #fff; word-break: break-all; }
-.download-desc { font-size: 13.5px; color: #ffd6dc; margin: 8px 0 16px; line-height: 1.5; }
-.download-filesize { font-size: 13.5px; color: #ffb454; font-weight: 700; }
-.btn-download-hero { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%;
-  padding: 18px 24px; border-radius: 14px; text-decoration: none !important;
-  font-size: 17px; font-weight: 800; color: #ffffff !important; letter-spacing: .02em;
-  background: linear-gradient(135deg, #ff2d46 0%, #d10f2a 55%, #ff7a2f 130%);
-  box-shadow: 0 8px 28px -6px rgba(255,45,70,.9); transition: all .2s; }
-.btn-download-hero:hover { transform: translateY(-2px); box-shadow: 0 14px 40px -6px rgba(255,45,70,1); filter: brightness(1.12); color: #fff !important; }
-.btn-download-hero:active { transform: translateY(0); }
-.download-path-tip { font-size: 12px; color: #a18c8f; margin: 12px 0 0; text-align: center; word-break: break-all; }
-.download-path-tip code { color: #ffb454; background: rgba(255,180,84,.12); padding: 2px 7px; border-radius: 6px; font-size: 11.5px; }
+/* ---------- Clean Download Card ---------- */
+.download-box { margin-top: 12px; padding: 16px 18px; border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,45,70,.14), rgba(255,122,47,.08)), #140d0f;
+  border: 1.5px solid rgba(255,45,70,.45); box-shadow: 0 8px 24px -8px rgba(255,45,70,.35); }
+.download-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.download-info { display: flex; flex-direction: column; gap: 3px; }
+.download-filename { font-size: 15.5px; font-weight: 800; color: #fff; word-break: break-all; }
+.download-sub { font-size: 12.5px; color: #ffb454; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.download-pill { padding: 2px 7px; border-radius: 5px; font-size: 11px; font-weight: 800; text-transform: uppercase;
+  background: #ff2d46; color: #fff; letter-spacing: .02em; }
+.btn-download-clean { display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 20px; border-radius: 11px; text-decoration: none !important;
+  font-size: 14.5px; font-weight: 800; color: #ffffff !important;
+  background: linear-gradient(135deg, #ff2d46 0%, #d10f2a 100%);
+  box-shadow: 0 6px 18px -5px rgba(255,45,70,.8); transition: all .2s; }
+.btn-download-clean:hover { transform: translateY(-1px); box-shadow: 0 10px 24px -5px rgba(255,45,70,1); filter: brightness(1.1); color: #fff !important; }
+.btn-download-clean:active { transform: translateY(0); }
 """
