@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "removebg-local"
+version = "0.1.0"
+description = "Local GPU video and photo background removal"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "torch>=2.7,<3", "torchvision>=0.22,<1",
+  "transformers==4.57.6", "gradio>=5.49,<6",
+  "av>=16,<18", "imageio-ffmpeg>=0.6,<0.7",
+  "numpy>=2,<3", "Pillow>=11,<13", "huggingface-hub>=0.34,<1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+removebg = "removebg.ui.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
