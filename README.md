@@ -39,6 +39,7 @@ Tombol Batalkan berhenti setelah operasi frame/model aktif selesai. Unduhan mode
 ```text
 src/removebg/
   ui/app.py                  # Gradio, input, titik pilihan, progress, pembatalan
+  ui/theme.py                # Tema merah-ember gelap dan CSS (hanya font sistem, tetap offline)
   application/service.py     # Urutan proses video/foto, lifecycle job dan hasil
   infrastructure/models.py   # Adapter RVM/SAM, CUDA, download/cache dan memori
   infrastructure/media.py    # PyAV decode/encode, FFmpeg audio, preview
