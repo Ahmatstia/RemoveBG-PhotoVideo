@@ -24,8 +24,8 @@ SAM merupakan segmentasi, bukan matting transparansi fisik: mask dipisahkan pada
 ### Ekspor
 
 - **MOV ProRes 4444:** alpha transparan dengan audio (jika ada); resolusi sumber. Cocok untuk editor yang mendukung ProRes alpha. Bukan lossless; file 1080p berdurasi panjang dapat berukuran puluhan GB. Audio diubah ke PCM untuk kompatibilitas MOV.
-- **MKV FFV1 mask:** alpha grayscale lossless tanpa audio. Putih = subjek, hitam = latar. Pasang sebagai luma matte di atas video sumber dalam editor. Ini mempertahankan video asli sebagai bahan compositing, tanpa re-encode warna sumber.
-- **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak dan tanpa audio. Bukan file transparan final.
+- **MKV FFV1 mask:** alpha grayscale lossless dengan audio sumber (PCM). Putih = subjek, hitam = latar. Pasang sebagai luma matte di atas video sumber dalam editor. Ini mempertahankan video asli sebagai bahan compositing, tanpa re-encode warna sumber.
+- **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak, dengan audio AAC dari 5 detik yang sama. Bukan file transparan final.
 - **PNG:** hasil foto dengan kanal alpha.
 
 Input tidak pernah ditimpa. Output berada di `data/outputs/<job-id>/`, beserta `report.json` (durasi, frame, waktu total, FPS pipeline). Hasil foto disimpan sebagai file PNG dengan ID unik. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem; output dipertahankan sampai pengguna menghapusnya.
