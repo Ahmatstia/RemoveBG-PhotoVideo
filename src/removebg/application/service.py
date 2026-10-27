@@ -33,6 +33,7 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
     final = job / ("hasil.mov" if export == "transparent" else "mask.mkv")
     silent = job / ("silent.mov" if export == "transparent" else "silent.mkv")
     preview = job / "preview.mp4"
+    silent_preview = job / "preview-silent.mp4"
     try:
         if shutil.disk_usage(job).free < 2 * 1024**3:
             raise ValueError("Sediakan minimal 2 GB ruang disk kosong sebelum memproses.")
@@ -43,7 +44,7 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
         writer = VideoWriter(silent, info.width, info.height, info.rate, export)
         preview_size = (max(2, round(info.width * min(1, 640 / info.width)) // 2 * 2),
                         max(2, round(info.height * min(1, 640 / info.width)) // 2 * 2))
-        preview_writer = VideoWriter(preview, *preview_size, info.rate, "preview")
+        preview_writer = VideoWriter(silent_preview, *preview_size, info.rate, "preview")
         origin = last = None
         end = 0.0
         with av.open(str(path)) as container:
@@ -89,16 +90,19 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
         if cancel.is_set():
             raise Cancelled()
         progress(0.99, "Menyelesaikan ekspor dan audio…")
-        if export == "transparent" and info.has_audio:
+        if info.has_audio:
             attach_audio(silent, path, final, origin, end, cancel)
             silent.unlink()
+            attach_audio(silent_preview, path, preview, origin, min(end, 5.0), cancel, "aac")
+            silent_preview.unlink()
         else:
             silent.rename(final)
+            silent_preview.rename(preview)
         seconds = time.monotonic() - started
         report = {"mode": mode, "quality": quality, "frames": frames, "width": info.width,
                   "height": info.height, "processed_seconds": end, "wall_seconds": round(seconds, 2),
                   "pipeline_fps": round(frames / seconds, 2), "export": export,
-                  "preview_only": preview_only, "audio": info.has_audio and export == "transparent"}
+                  "preview_only": preview_only, "audio": info.has_audio}
         (job / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         progress(1, "Selesai")
         return str(final), str(preview), report

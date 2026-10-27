@@ -113,14 +113,14 @@ def build_app():
                         clear = gr.Button("Hapus titik")
                 with gr.Column():
                     quality = gr.Radio(["Detail", "Cepat"], value="Detail", label="Kualitas manusia", info="Detail membantu subjek full-body; resolusi ekspor tetap sama. Objek umum memakai SAM 2 Small pada kedua pilihan.")
-                    export = gr.Dropdown([("MOV transparan · ProRes 4444 + audio", "transparent"), ("Mask lossless · MKV FFV1 tanpa audio", "mask")], value="transparent", label="3. Format ekspor")
+                    export = gr.Dropdown([("MOV transparan · ProRes 4444 + audio", "transparent"), ("Mask lossless · MKV FFV1 + audio", "mask")], value="transparent", label="3. Format ekspor")
                     gr.Markdown("MOV transparan berukuran besar. Jika editor tidak mendukungnya, gunakan mask putih/hitam bersama video sumber. Preview menggunakan pola kotak; pola tersebut tidak masuk ke hasil transparan.")
                     with gr.Row():
                         trial = gr.Button("Uji 5 detik pertama")
                         start = gr.Button("Proses video lengkap", variant="primary")
                         cancel = gr.Button("Batalkan", variant="stop")
                     status = gr.Markdown("Siap. Uji klip pendek terlebih dahulu untuk memeriksa tepian.")
-                    preview = gr.Video(label="Preview 5 detik · tanpa audio", interactive=False)
+                    preview = gr.Video(label="Preview 5 detik · dengan audio", interactive=False)
                     result = gr.File(label="Unduh hasil", interactive=False)
             source.change(load_source, source, [frame, original, points, details], concurrency_id="gpu")
             frame.select(select_point, [original, points, action], [frame, points], queue=False)

@@ -111,10 +111,10 @@ class VideoWriter:
         self.container.close()
 
 
-def attach_audio(video, source, target, origin, duration, cancel: threading.Event):
+def attach_audio(video, source, target, origin, duration, cancel: threading.Event, codec="pcm_s16le"):
     command = [imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y", "-copyts",
                "-i", str(video), "-i", str(source), "-map", "0:v:0", "-map", "1:a:0?",
-               "-c:v", "copy", "-c:a", "pcm_s16le", "-af", f"asetpts=PTS-{float(origin):.9f}/TB,atrim=start=0",
+               "-c:v", "copy", "-c:a", codec, "-af", f"asetpts=PTS-{float(origin):.9f}/TB,atrim=start=0",
                "-t", f"{duration:.9f}", "-map_metadata", "-1", str(target)]
     log = Path(target).with_suffix(".ffmpeg.log")
     with log.open("w+") as stderr:

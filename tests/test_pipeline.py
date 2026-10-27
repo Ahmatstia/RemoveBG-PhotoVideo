@@ -126,13 +126,20 @@ def test_audio_mux_and_preview_limit(tmp_path, monkeypatch):
     subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-v", "error", "-f", "lavfi", "-i",
                     "color=c=red:s=64x48:r=10:d=6", "-f", "lavfi", "-i", "sine=frequency=440:duration=6",
                     "-c:v", "libx264", "-c:a", "aac", "-shortest", str(source)], check=True)
-    result, _, report = service.run_video(source, "Manusia", "Detail", [], "transparent", True,
-                                         threading.Event(), lambda *_: None, lambda *_: Matte())
+    result, preview, report = service.run_video(source, "Manusia", "Detail", [], "transparent", True,
+                                               threading.Event(), lambda *_: None, lambda *_: Matte())
     assert report["frames"] == 50
     with av.open(result) as container:
         assert len(container.streams.audio) == 1
         assert abs(container.duration / av.time_base - 5) < .15
         assert abs(float(container.streams.audio[0].start_time * container.streams.audio[0].time_base)) < .05
+    with av.open(preview) as container:
+        assert len(container.streams.audio) == 1 and len(container.streams.video) == 1
+        assert abs(container.duration / av.time_base - 5) < .3
+    mask, _, _ = service.run_video(source, "Manusia", "Detail", [], "mask", True,
+                                   threading.Event(), lambda *_: None, lambda *_: Matte())
+    with av.open(mask) as container:
+        assert len(container.streams.audio) == 1
 
 
 def test_rotated_video(tmp_path):
