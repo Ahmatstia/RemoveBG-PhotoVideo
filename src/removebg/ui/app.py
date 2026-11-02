@@ -1,3 +1,4 @@
+import atexit
 import logging
 import os
 import threading
@@ -10,17 +11,20 @@ os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 import gradio as gr
 import torch
 from PIL import Image, ImageDraw
+from transformers.models.whisper.tokenization_whisper import LANGUAGES
 
 from removebg.application.service import run_photo, run_video
 from removebg.application.transcription import run_youtube_transcription
 from removebg.application.youtube_download import run_youtube_download
-from removebg.config import OUTPUTS, ROOT, prepare_dirs
+from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
 from removebg.ui.theme import CSS, FORCE_DARK, make_theme
 
 logger = logging.getLogger(__name__)
 running = {}
+TRANSCRIPT_LANGUAGES = [(name.title(), name) for name in sorted(LANGUAGES.values())]
+TRANSCRIPT_LANGUAGES.insert(0, ("Auto", "Auto"))
 
 
 def load_source(path, is_photo=False):
@@ -319,7 +323,7 @@ def build_app():
                     with gr.Group(elem_classes="card"):
                         step(1, "Tautan YouTube", "Fitur ini menghasilkan transkrip; file video tidak disimpan.")
                         transcript_url = gr.Textbox(label="URL video", placeholder="https://www.youtube.com/watch?v=…", max_lines=1)
-                        transcript_language = gr.Textbox(label="Bahasa (isi jika diketahui)", value="Auto", placeholder="Auto, Arabic, Indonesian, English…", max_lines=1)
+                        transcript_language = gr.Dropdown(TRANSCRIPT_LANGUAGES, label="Bahasa", value="Auto", filterable=True, allow_custom_value=False)
                         transcript_name = gr.Textbox(label="Nama file", placeholder="otomatis dari judul video", max_lines=1)
                         transcript_start = gr.Button("🚀 Buat Transkrip", variant="primary", size="lg")
                         transcript_cancel = gr.Button("Batal", variant="stop", size="sm")
@@ -332,7 +336,7 @@ def build_app():
                         transcript_json = gr.File(label="Kata + timestamp (.json)", interactive=False)
                 with gr.Column(scale=6):
                     with gr.Group(elem_classes="card"):
-                        gr.HTML('<div class="step-title">Pratinjau Transkrip</div><p class="step-sub" style="margin-left:0">Whisper large-v3 memakai konteks audio panjang. Isi bahasa jika tahu, misalnya Arabic; model akan memakai decoding lebih teliti, tetapi lebih lambat.</p>')
+                        gr.HTML('<div class="step-title">Pratinjau Transkrip</div><p class="step-sub" style="margin-left:0">Cari nama bahasa di dropdown atau pilih Auto. Jika bahasa sudah diketahui, pilihan manual menghindari deteksi bahasa dan memakai decoding lebih teliti.</p>')
                         transcript_preview = gr.Textbox(label="Hasil", lines=26, max_lines=40, interactive=False, placeholder="Hasil transkrip akan muncul di sini.")
             transcript_start.click(
                 process_transcription,
@@ -365,12 +369,14 @@ def build_app():
                 concurrency_limit=1,
             )
             download_cancel.click(stop, outputs=download_status, queue=False)
-        gr.HTML('<div class="footer-note">RemoveBG Local · AI berjalan di PC · Hasil tersimpan di <code>data/outputs</code></div>')
+        gr.HTML('<div class="footer-note">Hasil disimpan sementara selama aplikasi berjalan. Klik Unduh untuk menyimpan salinan.</div>')
     return app
 
 
 def main():
+    clear_outputs()
     prepare_dirs()
+    atexit.register(clear_outputs)
     logging.basicConfig(level=logging.INFO, filename=ROOT / "data" / "app.log", encoding="utf-8")
     build_app().queue(max_size=4, default_concurrency_limit=1).launch(
         server_name="127.0.0.1", inbrowser=True, share=False,

@@ -110,7 +110,7 @@ def run_youtube_transcription(url, language, output_name, progress, cancel: thre
         progress(0.48, "Menganalisis ucapan dan menyelaraskan waktu setiap kata…")
         options = {"task": "transcribe"}
         if str(language or "Auto").strip().lower() not in {"", "auto", "otomatis"}:
-            options["language"] = str(language).strip()
+            options["language"] = str(language).strip().lower()
             options["num_beams"] = 2
         def interrupt_if_cancelled(_module, _inputs):
             if cancel.is_set():
@@ -135,7 +135,7 @@ def run_youtube_transcription(url, language, output_name, progress, cancel: thre
             raise ValueError("Model tidak menemukan ucapan yang dapat ditranskripsikan.")
         stem = safe_name(output_name, safe_name(metadata["title"], "transkrip-youtube"))
         paths, plain, sentences = write_transcript(job, stem, metadata["title"], metadata["url"],
-                                                   str(language or "Auto"), words)
+                                                   "Auto" if not options.get("language") else options["language"].title(), words)
         shutil.rmtree(work, ignore_errors=True)
         progress(1, "Transkrip selesai.")
         return {**{kind: str(path) for kind, path in paths.items()}, "text": plain,

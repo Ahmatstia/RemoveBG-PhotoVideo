@@ -14,7 +14,7 @@ Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `mode
 ### Transkrip dan unduhan YouTube
 
 - Tempel URL satu video YouTube pada tab **Transkrip YouTube**. Audio diambil sementara, dikonversi ke WAV 16 kHz, lalu dianalisis di PC menggunakan Whisper large-v3. Tidak ada file video yang disimpan oleh alur transkrip.
-- Model Whisper large-v3 multilingual mendukung 99 bahasa, termasuk Arab, dan bahasa dapat dideteksi otomatis. Isikan nama/kode bahasa bila sudah diketahui; decoding memakai beam search untuk membantu mengurangi kesalahan pengenalan, dengan waktu proses lebih lama.
+- Model Whisper large-v3 multilingual mendukung 99 bahasa, termasuk Arab, dan bahasa dapat dideteksi otomatis. Cari lalu pilih bahasa di dropdown bila sudah diketahui; decoding memakai beam search untuk membantu mengurangi kesalahan pengenalan, dengan waktu proses lebih lama.
 - Transkripsi panjang diproses berurutan agar konteks antarbagiannya tetap terjaga. Ini mengutamakan ketepatan dibanding mode potongan cepat.
 - TXT berisi teks, SRT/VTT berisi timestamp kalimat, dan JSON menyimpan timestamp awal/akhir setiap kata serta kelompok kalimat. Timestamp kata merupakan estimasi alignment model; audio bising, ucapan tumpang tindih, aksen, dan kata yang salah dikenali dapat memengaruhi hasil.
 - Tab **Unduh YouTube** adalah fitur terpisah. Pilih kualitas Terbaik, 1080p, atau 720p untuk menyimpan video di folder output.
@@ -40,7 +40,7 @@ SAM merupakan segmentasi, bukan matting transparansi fisik: mask dipisahkan pada
 - **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak, dengan audio AAC dari 5 detik yang sama.
 - **PNG:** hasil foto dengan kanal alpha transparan.
 
-Input tidak pernah ditimpa. Output berada di `data/outputs/<job-id>/` dengan nama yang ditentukan pengguna (sanitasi otomatis untuk Windows) beserta `report.json` (durasi, frame, waktu total, FPS pipeline). Hasil foto disimpan sebagai file PNG dengan nama kustom dalam folder unik. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem; output dipertahankan sampai pengguna menghapusnya.
+Input tidak pernah ditimpa. Hasil foto, video, transkrip, dan unduhan YouTube ditampilkan di aplikasi dan disimpan sementara di folder temp Windows agar bisa dipratinjau atau diunduh. Hasil tidak disalin ke Downloads kecuali pengguna menekan tombol Unduh. Cache dibersihkan saat aplikasi ditutup normal atau saat dijalankan kembali. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem.
 
 Pipeline membaca frame berurutan, mempertahankan timestamp termasuk VFR, menangani rotasi 90°, dan tidak menampung semua frame di memori. Video HDR ditolak agar tidak terjadi perubahan warna tanpa pemberitahuan. Input/output AI memakai RGB/alpha 8-bit; ekspor ProRes 10-bit tidak menciptakan kembali detail 10-bit yang hilang. Tidak ada klaim hasil identik dengan sumber atau garansi real-time.
 
