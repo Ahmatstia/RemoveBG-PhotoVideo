@@ -1,0 +1,9 @@
+{
+  "name": "mytools-local",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm --prefix web run build",
+    "api": ".venv/Scripts/python.exe -m removebg.api"
+  }
+}

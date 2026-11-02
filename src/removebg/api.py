@@ -1,9 +1,11 @@
 import atexit
 import json
 import logging
+import os
 import shutil
 import threading
 import uuid
+import webbrowser
 from pathlib import Path
 
 import torch
@@ -179,6 +181,8 @@ def run_job(job, payload):
                     payload.get("points", []), output_name=payload.get("name"),
                 )
                 if cancel.is_set():
+                    Path(result).unlink(missing_ok=True)
+                    Path(result).parent.rmdir()
                     raise Cancelled("Proses dibatalkan.")
                 files = {"result": register_file(job, "result", result, Path(result).name, inline=True)}
                 metadata = {}
@@ -296,7 +300,11 @@ def main():
     clear_outputs()
     prepare_dirs()
     atexit.register(clear_outputs)
-    logging.basicConfig(level=logging.INFO, filename=ROOT / "data" / "app.log", encoding="utf-8")
+    log_path = ROOT / "data" / "app.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(level=logging.INFO, filename=log_path, encoding="utf-8")
+    if os.environ.get("MYTOOLS_OPEN_BROWSER") != "0":
+        threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:7860")).start()
     uvicorn.run(app, host="127.0.0.1", port=7860, log_level="warning")
 
 

@@ -10,5 +10,4 @@ try {
         exit 0
     }
 } catch { }
-Start-Process 'http://127.0.0.1:7860'
 & .venv/Scripts/python.exe -m removebg.api

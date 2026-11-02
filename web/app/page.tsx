@@ -5,7 +5,7 @@ import {
   ImagePlus, LoaderCircle, LockKeyhole, Monitor, MousePointer2, Scissors,
   ShieldCheck, Sparkles, Upload, WandSparkles, X,
 } from "lucide-react";
-import { ChangeEvent, FormEvent, MouseEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, MouseEvent, useEffect, useState } from "react";
 
 type Feature = "video" | "photo" | "transcription" | "download";
 type Point = { x: number; y: number; keep: boolean };
@@ -78,7 +78,6 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [backendReady, setBackendReady] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch(API + "/api/health").then(responseJson).then((data) => { setGpu(data.gpu); setBackendReady(true); }).catch(() => setBackendReady(false));
@@ -104,6 +103,10 @@ export default function Home() {
       setUploading(false);
       event.target.value = "";
     }
+  }
+
+  function discardUpload(id: string) {
+    fetch(API + "/api/uploads/" + id, { method: "DELETE" }).catch(() => {});
   }
 
   function addPoint(event: MouseEvent<HTMLDivElement>) {
@@ -156,13 +159,13 @@ export default function Home() {
     if (job) await fetch(API + "/api/jobs/" + job.id + "/cancel", { method: "POST" }).catch(() => {});
   }
   function chooseFeature(next: Feature) {
+    if (uploaded) discardUpload(uploaded.id);
     setFeature(next); setError(""); setJob(null); setUploaded(null); setPoints([]); setName("");
   }
 
   const currentFeature = FEATURES.find((item) => item.id === feature)!;
   const jobResult = job?.kind === feature && job.state === "completed" ? job.result : null;
   const files = jobResult?.files;
-  const Icon = currentFeature.icon;
 
   return (
     <main className="app-shell">
@@ -173,15 +176,6 @@ export default function Home() {
         </div>
         <div className="local-status"><span className={"status-dot " + (backendReady ? "" : "offline")} />{gpu || (backendReady ? "Backend lokal" : "Menghubungkan…")}</div>
       </header>
-
-      <section className="hero">
-        <div>
-          <div className="eyebrow"><Sparkles size={14} /> Workspace pribadi</div>
-          <h1>Kerjakan lebih banyak,<br />dari satu tempat.</h1>
-          <p>Olah video dan foto, buat transkrip YouTube multilingual, atau unduh video. Semua proses berjalan lokal di komputermu.</p>
-        </div>
-        <div className="hero-note"><ShieldCheck size={16} /> File sementara dibersihkan saat aplikasi ditutup</div>
-      </section>
 
       <div className="mobile-nav" aria-label="Pilih alat">
         {FEATURES.map((item) => <NavButton key={item.id} item={item} active={feature === item.id} onClick={() => chooseFeature(item.id)} compact />)}
@@ -206,16 +200,16 @@ export default function Home() {
                 <div className="field">
                   <label className="field-label">File sumber</label>
                   {uploaded ? <div>
-                    <div className={"source-preview " + (mode === "Objek umum" ? "interactive" : "")} onClick={addPoint}>
+                    <div className={"source-preview " + (mode === "Objek umum" ? "interactive" : "")} style={{ width: "min(100%, " + (420 * uploaded.details.width / uploaded.details.height) + "px)", aspectRatio: uploaded.details.width + " / " + uploaded.details.height }} onClick={addPoint}>
                       <img src={API + uploaded.preview_url} alt="Pratinjau sumber" />
                       {points.map((point, index) => <span key={index} className={"point-marker " + (point.keep ? "keep" : "remove")} style={{ left: (point.x / uploaded.details.width * 100) + "%", top: (point.y / uploaded.details.height * 100) + "%" }} />)}
                     </div>
                     <div className="preview-caption">
                       <span>{uploaded.details.width} × {uploaded.details.height}{uploaded.details.duration ? " · " + formatTime(uploaded.details.duration) : " · Foto"}</span>
-                      <button type="button" className="text-button" onClick={() => setUploaded(null)}>Ganti file</button>
+                      <button type="button" className="text-button" onClick={() => { discardUpload(uploaded.id); setUploaded(null); }}>Ganti file</button>
                     </div>
                   </div> : <label className="upload-box">
-                    <input ref={inputRef} type="file" accept={feature === "photo" ? ".png,.jpg,.jpeg,.webp" : ".mp4,.mov,.mkv,.avi,.webm"} onChange={uploadFile} />
+                    <input type="file" accept={feature === "photo" ? ".png,.jpg,.jpeg,.webp" : ".mp4,.mov,.mkv,.avi,.webm"} onChange={uploadFile} />
                     {uploading ? <LoaderCircle className="spin" size={22} color="#0d9488" /> : <Upload size={22} color="#0d9488" />}
                     <span className="upload-title">{uploading ? "Menyiapkan pratinjau…" : "Pilih file dari komputer"}</span>
                     <span className="upload-subtitle">{feature === "photo" ? "PNG, JPG, WEBP · Maks. 40 MP" : "MP4, MOV, MKV, AVI, WEBM · Maks. 15 menit"}</span>
@@ -268,7 +262,7 @@ export default function Home() {
               <div className="result-heading"><h3>Pratinjau & hasil</h3><span className="result-meta">{jobResult ? "Siap disimpan" : "Hasil akan muncul di sini"}</span></div>
               {feature === "video" && files?.preview ? <><video className="preview-video" src={fileUrl(files.preview)} controls playsInline preload="metadata" /><FileDownload file={files.result} /><p className="field-hint">Pratinjau hanya menampilkan 5 detik pertama. File lengkap dapat disimpan lewat tombol di atas.</p></>
                 : feature === "photo" && files?.result ? <><img className="preview-image" src={fileUrl(files.result)} alt="Hasil foto tanpa latar" /><FileDownload file={files.result} /></>
-                  : feature === "download" && files?.result ? <><video className="preview-video" src={fileUrl(files.result)} controls playsInline preload="metadata" /><div className="result-meta result-size">{jobResult.size ? (jobResult.size / 1048576).toFixed(1) + " MB" : ""}</div><FileDownload file={files.result} /></>
+                : feature === "download" && files?.result ? <><video className="preview-video" src={fileUrl(files.result)} controls playsInline preload="metadata" /><div className="result-meta result-size">{jobResult?.size ? (jobResult.size / 1048576).toFixed(1) + " MB" : ""}</div><FileDownload file={files.result} /></>
                     : feature === "transcription" && jobResult?.text ? <><div className="transcript-output">{jobResult.text}</div><div className="file-links">{["txt", "srt", "vtt", "json"].map((key) => <a className="file-link" href={fileUrl(files?.[key], true)} key={key}><FileText size={14} />{key.toUpperCase()}</a>)}</div></>
                       : <div className="empty-preview"><div><Monitor size={25} /><div>Pilih alat dan mulai pekerjaan.<br />Pratinjau akan tampil di area ini.</div></div></div>}
             </div>

@@ -102,8 +102,8 @@ textarea.control { min-height: 100px; resize: vertical; }
 .upload-box input { display: none; }
 .upload-title { margin-top: 7px; color: #394741; font-size: 12px; font-weight: 700; }
 .upload-subtitle { margin-top: 3px; color: #8a9691; font-size: 10px; }
-.source-preview { position: relative; width: 100%; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #f5f7f6; line-height: 0; }
-.source-preview img { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+.source-preview { position: relative; max-width: 100%; max-height: 420px; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #f5f7f6; line-height: 0; }
+.source-preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .source-preview.interactive { cursor: crosshair; }
 .point-marker { position: absolute; width: 13px; height: 13px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 1px 5px #0005; pointer-events: none; }
 .point-marker.keep { background: #12a77a; }

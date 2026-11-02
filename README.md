@@ -1,15 +1,19 @@
-# RemoveBG Local
+# MyTools
 
-Tool Windows lokal untuk menghapus latar video/foto, membuat transkrip multilingual dari YouTube, dan mengunduh video YouTube. Pemrosesan AI berjalan di PC tanpa layanan transkripsi cloud. Fitur YouTube dan unduhan model pertama kali memerlukan internet. Penghapusan latar ditargetkan untuk RTX 3050 Laptop 6 GB; input video SDR hingga 1920×1080 / 1080×1920 dan 15 menit.
+Web app Windows lokal untuk menghapus latar video/foto, membuat transkrip multilingual dari YouTube, dan mengunduh video. Frontend Next.js disajikan oleh API FastAPI, sementara pemrosesan AI tetap berjalan di Python dan GPU lokal. Fitur online dan unduhan model pertama kali memerlukan internet. Penghapusan latar ditargetkan untuk RTX 3050 Laptop 6 GB; input video SDR hingga 1920×1080 / 1080×1920 dan 15 menit.
 
 ## Menjalankan
 
 1. Instal Python 3.11, [uv](https://docs.astral.sh/uv/getting-started/installation/), [Node.js 22+](https://nodejs.org/), dan driver NVIDIA yang mendukung CUDA 12.8.
-2. Buka PowerShell di folder proyek, lalu jalankan `./setup.ps1` sekali. PyTorch CUDA mengunduh beberapa GB.
-3. Klik dua kali `run.bat` atau jalankan `./run.ps1`. Browser membuka alamat lokal yang ditampilkan terminal (biasanya http://127.0.0.1:7860).
-4. Pilih tab **Video** atau **Foto** untuk menghapus latar. Tab **Transkrip YouTube** menghasilkan TXT, SRT, VTT, dan JSON kata beserta timestamp. Tab **Downloader** mendukung YouTube, Instagram, TikTok, dan Twitter/X.
+2. Buka PowerShell di folder proyek, lalu jalankan ./setup.ps1 sekali. Ini memasang dependensi Python, membangun frontend Next.js, dan memasang PyTorch CUDA yang berukuran beberapa GB.
+3. Klik dua kali run.bat atau jalankan ./run.ps1. Browser membuka web app lokal di http://127.0.0.1:7860.
+4. Gunakan navigasi **Video**, **Foto**, **Transkrip**, dan **Downloader**.
 
-Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `models/`. Setelah model tersimpan, penghapusan latar dan transkripsi file lokal bisa dijalankan tanpa internet; mengambil konten dari YouTube tetap memerlukan internet. Gradio tidak menggunakan share link; analytics Gradio dan telemetry Hugging Face dinonaktifkan.
+### Mode pengembangan Next.js
+
+Untuk mengedit tampilan dengan auto-refresh, jalankan `npm run dev` dari folder utama project. Perintah ini menyalakan API Python dan Next.js dev server bersama-sama; buka http://127.0.0.1:3000. Perubahan tampilan langsung diperbarui. Untuk penggunaan biasa, jalankan run.bat.
+
+Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di folder models. Setelah model tersimpan, penghapusan latar dan transkripsi file lokal bisa dijalankan tanpa internet; mengambil konten dari platform video tetap memerlukan internet. API hanya mendengarkan di 127.0.0.1 dan tidak membuka akses jaringan lokal.
 
 ### Transkrip dan unduhan YouTube
 
@@ -40,7 +44,7 @@ SAM merupakan segmentasi, bukan matting transparansi fisik: mask dipisahkan pada
 - **Preview MP4:** hanya lima detik pertama, resolusi ringan, pola kotak, dengan audio AAC dari 5 detik yang sama.
 - **PNG:** hasil foto dengan kanal alpha transparan.
 
-Input tidak pernah ditimpa. Hasil foto, video, transkrip, dan unduhan YouTube ditampilkan di aplikasi dan disimpan sementara di folder temp Windows agar bisa dipratinjau atau diunduh. Hasil tidak disalin ke Downloads kecuali pengguna menekan tombol Unduh. Cache dibersihkan saat aplikasi ditutup normal atau saat dijalankan kembali. Log aplikasi: `data/app.log`. Upload sementara dikelola Gradio di folder temp sistem.
+Input tidak pernah ditimpa. Hasil foto, video, transkrip, dan unduhan ditampilkan di web app dan disimpan sementara di folder temp Windows agar bisa dipratinjau atau diunduh. Hasil tidak disalin ke Downloads kecuali pengguna menekan tombol Simpan file. Cache dibersihkan saat aplikasi ditutup normal atau saat dijalankan kembali. Log aplikasi ada di data/app.log.
 
 Pipeline membaca frame berurutan, mempertahankan timestamp termasuk VFR, menangani rotasi 90°, dan tidak menampung semua frame di memori. Video HDR ditolak agar tidak terjadi perubahan warna tanpa pemberitahuan. Input/output AI memakai RGB/alpha 8-bit; ekspor ProRes 10-bit tidak menciptakan kembali detail 10-bit yang hilang. Tidak ada klaim hasil identik dengan sumber atau garansi real-time.
 
@@ -50,8 +54,7 @@ Tombol Batalkan berhenti setelah operasi frame/model aktif selesai. Unduhan mode
 
 ```text
 src/removebg/
-  ui/app.py                  # Gradio, input, titik pilihan, progress, pembatalan
-  ui/theme.py                # Tema merah-ember gelap dan CSS (hanya font sistem, tetap offline)
+  api.py                     # FastAPI lokal, unggah, pekerjaan, progress, file hasil
   application/service.py     # Urutan proses video/foto, lifecycle job dan hasil
   infrastructure/models.py   # Adapter RVM/SAM, CUDA, download/cache dan memori
   infrastructure/media.py    # PyAV decode/encode, FFmpeg audio, preview
@@ -63,10 +66,14 @@ src/removebg/
   domain.py                  # Metadata video dan validasi titik
   config.py                  # Lokasi output/model
 tests/test_pipeline.py       # Kontrak ekspor, timestamp, cleanup, audio, mask
+web/
+  app/page.tsx               # Next.js, alat dan pratinjau
+  app/globals.css            # UI responsif dengan font sistem
+  next.config.ts             # Build statis yang disajikan FastAPI
 setup.ps1 / run.ps1 / run.bat
 ```
 
-UI tidak melakukan inference langsung. Untuk model tambahan, buat adapter dengan `process(rgb) -> (foreground_rgb, alpha_uint8)` lalu sambungkan melalui `create_model`. Model harus menyimpan state temporal di instance sendiri. Satu pekerjaan GPU diproses pada satu waktu. Tidak ada database, server eksternal, atau framework frontend tambahan.
+UI web tidak melakukan inference langsung. Untuk model tambahan, buat adapter dengan process(rgb) -> (foreground_rgb, alpha_uint8) lalu sambungkan melalui create_model. Model harus menyimpan state temporal di instance sendiri. Satu pekerjaan diproses pada satu waktu. Tidak ada database atau layanan pemrosesan cloud.
 
 ## Verifikasi
 
