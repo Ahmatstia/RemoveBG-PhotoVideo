@@ -1,5 +1,8 @@
+import base64
+import ipaddress
 import threading
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import imageio_ffmpeg
 from yt_dlp import YoutubeDL
@@ -21,13 +24,56 @@ PLATFORMS = {
 
 
 def platform_url(value, platform):
-    from urllib.parse import urlparse
-
-    hosts = PLATFORMS.get(platform)
     parsed = urlparse(str(value or "").strip())
     host = (parsed.hostname or "").lower().removeprefix("www.")
+    if platform == "Link umum":
+        if parsed.scheme not in {"http", "https"} or not host or parsed.username or parsed.password:
+            raise ValueError("Masukkan URL video publik dengan alamat http:// atau https:// yang valid.")
+        try:
+            parsed.port
+        except ValueError as error:
+            raise ValueError("Port URL tidak valid.") from error
+        if host == "localhost" or host.endswith((".localhost", ".local")):
+            raise ValueError("Link umum hanya menerima alamat website publik.")
+        try:
+            address = ipaddress.ip_address(host)
+        except ValueError:
+            address = None
+        if address is not None and not address.is_global:
+            raise ValueError("Link umum hanya menerima alamat IP publik.")
+        proxy_origin = next((item for key, item in parse_qsl(parsed.query, keep_blank_values=True) if key == "__cpo"), None)
+        if address is not None and proxy_origin:
+            try:
+                padding = "=" * (-len(proxy_origin) % 4)
+                origin = urlparse(base64.urlsafe_b64decode(proxy_origin + padding).decode("utf-8"))
+                origin_host = (origin.hostname or "").lower().removeprefix("www.")
+                try:
+                    origin_address = ipaddress.ip_address(origin_host)
+                except ValueError:
+                    origin_address = None
+                if (
+                    origin.scheme not in {"http", "https"}
+                    or not origin.hostname
+                    or origin.username
+                    or origin.password
+                    or origin.path not in {"", "/"}
+                    or origin.query
+                    or origin.fragment
+                    or origin_host == "localhost"
+                    or origin_host.endswith((".localhost", ".local"))
+                    or (origin_address is not None and not origin_address.is_global)
+                ):
+                    return parsed.geturl()
+                origin.port
+            except (ValueError, UnicodeDecodeError):
+                return parsed.geturl()
+            source_query = [(key, item) for key, item in parse_qsl(parsed.query, keep_blank_values=True) if key != "__cpo"]
+            return urlunparse((origin.scheme, origin.netloc, parsed.path, parsed.params, urlencode(source_query), parsed.fragment))
+        return parsed.geturl()
+
+    hosts = PLATFORMS.get(platform)
     if not hosts or parsed.scheme not in {"http", "https"} or not any(host == domain or host.endswith("." + domain) for domain in hosts):
-        supported = ", ".join(PLATFORMS)
+        supported = ", ".join((*PLATFORMS, "Link umum"))
         raise ValueError(f"Masukkan URL {platform} yang valid. Platform yang didukung: {supported}.")
     return parsed.geturl()
 

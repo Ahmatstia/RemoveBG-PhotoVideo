@@ -9,6 +9,63 @@ import pytest
 
 from removebg.application import youtube_download
 from removebg.infrastructure import youtube_video
+from removebg.infrastructure import browser_capture
+
+
+@pytest.mark.parametrize("url", [
+    "https://fcaimg.com/v/XKpZWWoH1",
+    "https://media.twimg.date/UZtntO1w1.mp4",
+    "https://108.181.6.9/video/",
+])
+def test_generic_download_accepts_public_video_urls(url):
+    assert youtube_video.platform_url(url, "Link umum") == url
+
+
+def test_generic_download_unwraps_cpo_proxy_page_to_source_url():
+    proxy_url = (
+        "https://108.181.6.9/video-68JiF1TSNZF/booty-beauty-of-the-week-07-26/"
+        "?__cpo=aHR0cHM6Ly93d3cuZXBvcm5lci5jb20"
+    )
+    assert youtube_video.platform_url(proxy_url, "Link umum") == (
+        "https://www.eporner.com/video-68JiF1TSNZF/booty-beauty-of-the-week-07-26/"
+    )
+
+
+@pytest.mark.parametrize("url", [
+    "file:///video.mp4",
+    "http://127.0.0.1:7860/api/health",
+    "http://192.168.1.1/video.mp4",
+    "https://localhost/video.mp4",
+    "https://user:pass@example.com/video.mp4",
+])
+def test_generic_download_rejects_local_or_invalid_urls(url):
+    with pytest.raises(ValueError):
+        youtube_video.platform_url(url, "Link umum")
+
+
+@pytest.mark.parametrize("url", [
+    "https://example.com/video-page",
+    "http://8.8.8.8/video.mp4",
+])
+def test_browser_capture_accepts_public_http_urls(url, monkeypatch):
+    monkeypatch.setattr(browser_capture.socket, "getaddrinfo", lambda *_args: [(None, None, None, None, ("93.184.216.34", 0))])
+    assert browser_capture.is_public_http_url(url)
+
+
+@pytest.mark.parametrize("url", [
+    "file:///C:/secret.txt",
+    "http://127.0.0.1:7860/api/health",
+    "http://192.168.1.1/video.mp4",
+    "https://localhost/video",
+    "https://user:pass@example.com/video",
+])
+def test_browser_capture_rejects_non_public_urls(url):
+    assert not browser_capture.is_public_http_url(url)
+
+
+def test_browser_capture_rejects_hosts_resolving_to_private_addresses(monkeypatch):
+    monkeypatch.setattr(browser_capture.socket, "getaddrinfo", lambda *_args: [(None, None, None, None, ("10.0.0.4", 0))])
+    assert not browser_capture.is_public_http_url("https://example.com/video")
 
 
 def test_youtube_bot_check_retries_with_android_client(tmp_path, monkeypatch):

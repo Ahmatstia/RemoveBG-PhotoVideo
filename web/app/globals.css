@@ -67,6 +67,9 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .field { margin-bottom: 17px; }
 .field-label { display: block; margin-bottom: 7px; color: #40504a; font-size: 12px; font-weight: 700; }
 .field-hint { margin: 6px 0 0; color: #87938e; font-size: 11px; line-height: 1.5; }
+.capture-panel { display: grid; gap: 8px; margin-top: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: #fbfcfb; }
+.capture-candidate { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); color: #45534e; font-size: 12px; }
+.capture-candidate code { grid-column: 1 / -1; overflow-wrap: anywhere; color: #87938e; font-size: 10px; }
 .control { display: block; width: 100%; min-height: 44px; padding: 11px 13px; border: 1px solid #dce4df; border-radius: 10px; outline: 0; background: #fff; color: var(--text); transition: border-color .15s, box-shadow .15s; }
 .control::placeholder { color: #a2aca7; }
 .control:focus { border-color: #62b7aa; box-shadow: 0 0 0 3px rgba(13,148,136,.11); }

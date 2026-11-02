@@ -21,6 +21,7 @@ from removebg.application.youtube_download import run_instagram_photo_download, 
 from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
+from removebg.infrastructure.browser_capture import run_browser_capture
 
 logger = logging.getLogger(__name__)
 WEB_OUT = ROOT / "web" / "out"
@@ -32,6 +33,7 @@ UPLOAD_TYPES = {
 }
 jobs = {}
 uploads = {}
+media_captures = {}
 state_lock = threading.Lock()
 work_lock = threading.Lock()
 app = FastAPI(title="RemoveBG Local API", docs_url=None, redoc_url=None)
@@ -328,6 +330,53 @@ def cancel_job(job_id: str):
     if not job:
         raise HTTPException(404, "Pekerjaan tidak ditemukan.")
     job["cancel"].set()
+    return {"ok": True}
+
+
+def run_media_capture(capture_id, url):
+    capture = media_captures[capture_id]
+    try:
+        run_browser_capture(url, capture, capture["cancel"])
+    except Exception as error:
+        logger.info("Generic media capture failed: %s", error)
+        capture.update(state="failed", message=str(error))
+
+
+@app.post("/api/media-captures")
+def create_media_capture(url: str = Form(...)):
+    from removebg.infrastructure.youtube_video import platform_url
+
+    try:
+        clean_url = platform_url(url, "Link umum")
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    capture_id = uuid.uuid4().hex
+    capture = {
+        "id": capture_id,
+        "state": "queued",
+        "message": "Menyiapkan browser sementara…",
+        "candidates": [],
+        "cancel": threading.Event(),
+    }
+    media_captures[capture_id] = capture
+    threading.Thread(target=run_media_capture, args=(capture_id, clean_url), daemon=True).start()
+    return {key: value for key, value in capture.items() if key not in {"cancel"}}
+
+
+@app.get("/api/media-captures/{capture_id}")
+def get_media_capture(capture_id: str):
+    capture = media_captures.get(capture_id)
+    if not capture:
+        raise HTTPException(status_code=404, detail="Sesi deteksi tidak ditemukan.")
+    return {key: value for key, value in capture.items() if key not in {"cancel"}}
+
+
+@app.delete("/api/media-captures/{capture_id}")
+def stop_media_capture(capture_id: str):
+    capture = media_captures.get(capture_id)
+    if capture:
+        capture["cancel"].set()
+        capture.update(state="cancelled", message="Sesi browser ditutup.")
     return {"ok": True}
 
 

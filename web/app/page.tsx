@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  ArrowDownToLine, AudioLines, Check, ChevronRight, Clapperboard, FileText,
+  ArrowDownToLine, AudioLines, Check, ChevronRight, Clapperboard, ExternalLink, FileText,
   ImagePlus, LoaderCircle, LockKeyhole, Monitor, MousePointer2, Scissors,
   ShieldCheck, Sparkles, Upload, WandSparkles, X,
 } from "lucide-react";
@@ -29,6 +29,7 @@ type Job = {
     files: Record<string, FileResult>;
   } | null;
 };
+type MediaCapture = { id: string; state: string; message: string; candidates: { url: string; type: string; status: number }[] };
 type FeatureInfo = { id: Feature; label: string; short: string; icon: typeof Clapperboard };
 
 const API = process.env.NODE_ENV === "development" ? "http://127.0.0.1:7860" : "";
@@ -78,11 +79,26 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [backendReady, setBackendReady] = useState(false);
+  const [mediaCapture, setMediaCapture] = useState<MediaCapture | null>(null);
 
   useEffect(() => {
     fetch(API + "/api/health").then(responseJson).then((data) => { setGpu(data.gpu); setBackendReady(true); }).catch(() => setBackendReady(false));
     fetch(API + "/api/languages").then(responseJson).then((data) => setLanguages(data.languages)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const captureId = mediaCapture?.id;
+    if (!captureId) return;
+    let active = true;
+    const poll = async () => {
+      try {
+        const current: MediaCapture = await responseJson(await fetch(API + "/api/media-captures/" + captureId, { cache: "no-store" }));
+        if (active) setMediaCapture(current);
+      } catch { }
+    };
+    const timer = window.setInterval(poll, 1000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [mediaCapture?.id]);
 
   async function uploadFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -158,7 +174,24 @@ export default function Home() {
   async function cancelJob() {
     if (job) await fetch(API + "/api/jobs/" + job.id + "/cancel", { method: "POST" }).catch(() => {});
   }
+  async function openMediaCapture() {
+    setError(""); setJob(null);
+    if (mediaCapture) fetch(API + "/api/media-captures/" + mediaCapture.id, { method: "DELETE" }).catch(() => {});
+    try {
+      const form = new FormData(); form.append("url", downloadUrl);
+      const capture: MediaCapture = await responseJson(await fetch(API + "/api/media-captures", { method: "POST", body: form }));
+      setMediaCapture(capture);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Gagal membuka browser deteksi.");
+    }
+  }
+  function useCapturedMedia(url: string) {
+    if (mediaCapture) fetch(API + "/api/media-captures/" + mediaCapture.id, { method: "DELETE" }).catch(() => {});
+    setDownloadUrl(url); setMediaCapture(null); setError("");
+  }
   function chooseFeature(next: Feature) {
+    if (mediaCapture) fetch(API + "/api/media-captures/" + mediaCapture.id, { method: "DELETE" }).catch(() => {});
+    setMediaCapture(null);
     if (uploaded) discardUpload(uploaded.id);
     setFeature(next); setError(""); setJob(null); setUploaded(null); setPoints([]); setName("");
   }
@@ -239,8 +272,10 @@ export default function Home() {
               </>}
 
               {feature === "download" && <>
-                <div className="field"><label className="field-label" htmlFor="platform">Platform</label><select id="platform" className="control select-control" value={platform} onChange={(event) => setPlatform(event.target.value)}>{["YouTube", "Instagram", "TikTok", "Twitter/X"].map((item) => <option key={item}>{item}</option>)}</select></div>
-                <div className="field"><label className="field-label" htmlFor="download-url">Tautan video atau posting foto</label><input id="download-url" className="control" type="url" value={downloadUrl} onChange={(event) => setDownloadUrl(event.target.value)} placeholder={platform === "Instagram" ? "Tempel tautan posting atau reel Instagram" : platform === "TikTok" ? "Tempel tautan video atau foto TikTok" : "Tempel tautan video"} /><p className="field-hint">{platform === "Instagram" ? "Posting foto dan carousel ditampilkan per foto; tautan reel/video tetap diunduh sebagai video." : platform === "TikTok" ? "Posting foto ditampilkan per foto. Video memakai TikWM tanpa login, lalu diubah ke H.264 MP4 agar kompatibel di Windows. URL publik video dikirim ke TikWM." : "Tempel tautan video publik dari platform yang dipilih."}</p></div>
+                <div className="field"><label className="field-label" htmlFor="platform">Platform</label><select id="platform" className="control select-control" value={platform} onChange={(event) => { if (mediaCapture) fetch(API + "/api/media-captures/" + mediaCapture.id, { method: "DELETE" }).catch(() => {}); setMediaCapture(null); setPlatform(event.target.value); }}>{["YouTube", "Instagram", "TikTok", "Twitter/X", "Link umum"].map((item) => <option key={item}>{item}</option>)}</select></div>
+                <div className="field"><label className="field-label" htmlFor="download-url">Tautan video atau posting foto</label><input id="download-url" className="control" type="url" value={downloadUrl} onChange={(event) => setDownloadUrl(event.target.value)} placeholder={platform === "Instagram" ? "Tempel tautan posting atau reel Instagram" : platform === "TikTok" ? "Tempel tautan video atau foto TikTok" : platform === "Link umum" ? "Tempel tautan halaman video atau file video langsung" : "Tempel tautan video"} /><p className="field-hint">{platform === "Instagram" ? "Posting foto dan carousel ditampilkan per foto; tautan reel/video tetap diunduh sebagai video." : platform === "TikTok" ? "Posting foto ditampilkan per foto. Video memakai TikWM tanpa login, lalu diubah ke H.264 MP4 agar kompatibel di Windows. URL publik video dikirim ke TikWM." : platform === "Link umum" ? "Mencoba halaman video dan tautan file langsung dari website publik. Website dengan DRM, login wajib, atau proteksi khusus mungkin tidak dapat diunduh." : "Tempel tautan video publik dari platform yang dipilih."}</p>
+                  {platform === "Link umum" && <><button type="button" className="secondary-button" onClick={openMediaCapture} disabled={!downloadUrl.trim()}><ExternalLink size={15} />Buka halaman & deteksi video</button>{mediaCapture && <div className="capture-panel" aria-live="polite"><p className="field-hint">{mediaCapture.message}</p>{!(["failed", "cancelled"].includes(mediaCapture.state)) && <button type="button" className="text-button" onClick={() => { fetch(API + "/api/media-captures/" + mediaCapture.id, { method: "DELETE" }).catch(() => {}); setMediaCapture(null); }}>Tutup browser</button>}{mediaCapture.candidates.map((candidate, index) => <div className="capture-candidate" key={candidate.url}><span>{candidate.type || "Sumber media"} · {index + 1}</span><button type="button" className="text-button" onClick={() => useCapturedMedia(candidate.url)}>Gunakan sumber ini</button><code>{candidate.url}</code></div>)}</div>}</>}
+                </div>
                 {platform !== "TikTok" && <div className="field"><label className="field-label">Kualitas</label><div className="choice-row">{["Terbaik", "1080p", "720p"].map((value) => <label className="choice" key={value}><input type="radio" checked={downloadQuality === value} onChange={() => setDownloadQuality(value)} />{value}</label>)}</div></div>}
                 <div className="field"><label className="field-label" htmlFor="download-name">Nama file (opsional)</label><input id="download-name" className="control" value={name} onChange={(event) => setName(event.target.value)} placeholder="otomatis dari judul video" /></div>
               </>}
@@ -291,7 +326,7 @@ function featureDescription(feature: Feature) {
     video: "Hilangkan latar video dengan model lokal. Pilih manusia atau tandai objek yang ingin dipertahankan.",
     photo: "Buat foto transparan. Pilih deteksi manusia atau tandai objek secara manual.",
     transcription: "Ubah ucapan YouTube menjadi teks multilingual dengan timestamp per kata.",
-    download: "Unduh video dari YouTube, Instagram, TikTok, atau Twitter/X. Foto dan carousel TikTok serta Instagram ditampilkan sebagai galeri.",
+    download: "Unduh video dari YouTube, Instagram, TikTok, Twitter/X, atau tautan umum. Foto dan carousel TikTok serta Instagram ditampilkan sebagai galeri.",
   }[feature];
 }
 function featureAction(feature: Feature) {
