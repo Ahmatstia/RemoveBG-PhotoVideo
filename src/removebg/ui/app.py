@@ -70,7 +70,7 @@ def video_player(path):
     return f'<div class="player"><video src="{url}" controls playsinline preload="metadata" controlslist="nodownload"></video></div>'
 
 
-EMPTY_DOWNLOAD = '<div style="padding:14px;text-align:center;color:#6d5b5e;font-size:13px;border:1.5px dashed #2a181b;border-radius:14px;background:#11090b;margin-top:10px;">File hasil unduhan akan muncul di sini.</div>'
+EMPTY_DOWNLOAD = '<div class="download-empty">File hasil unduhan akan muncul di sini.</div>'
 
 
 def download_card(file_path):
@@ -209,8 +209,20 @@ def toggle_subject(subject):
 
 def hero(gpu):
     return f"""<div class="hero">
-  <div class="hero-top"><div class="logo">✂</div><h1>RemoveBG <span>Local</span></h1></div>
-  <p>Hapus latar video dan foto, buat transkrip multilingual, dan simpan video YouTube langsung dari PC-mu.</p>
+  <div class="hero-top">
+    <div class="hero-brand">
+      <div class="logo">✂</div>
+      <div class="hero-titles">
+        <h1>RemoveBG <span>Local</span></h1>
+        <p>Hapus latar video dan foto, buat transkrip multilingual, dan simpan video YouTube langsung dari PC-mu.</p>
+      </div>
+    </div>
+    <div class="theme-switch-container">
+      <button id="theme-toggle-btn" type="button" class="theme-btn" onclick="window.toggleTheme()">
+        <span class="theme-icon">🍦</span> <span class="theme-text">Mode Krem & Putih</span>
+      </button>
+    </div>
+  </div>
   <div class="chips">
     <span class="chip">⚡ {gpu}</span>
     <span class="chip ok">🔊 Audio Utuh</span>
@@ -307,7 +319,7 @@ def build_app():
                     with gr.Group(elem_classes="card"):
                         step(1, "Tautan YouTube", "Fitur ini menghasilkan transkrip; file video tidak disimpan.")
                         transcript_url = gr.Textbox(label="URL video", placeholder="https://www.youtube.com/watch?v=…", max_lines=1)
-                        transcript_language = gr.Textbox(label="Bahasa (opsional)", value="Auto", placeholder="Auto, Arabic, Indonesian, English…", max_lines=1)
+                        transcript_language = gr.Textbox(label="Bahasa (isi jika diketahui)", value="Auto", placeholder="Auto, Arabic, Indonesian, English…", max_lines=1)
                         transcript_name = gr.Textbox(label="Nama file", placeholder="otomatis dari judul video", max_lines=1)
                         transcript_start = gr.Button("🚀 Buat Transkrip", variant="primary", size="lg")
                         transcript_cancel = gr.Button("Batal", variant="stop", size="sm")
@@ -320,7 +332,7 @@ def build_app():
                         transcript_json = gr.File(label="Kata + timestamp (.json)", interactive=False)
                 with gr.Column(scale=6):
                     with gr.Group(elem_classes="card"):
-                        gr.HTML('<div class="step-title">Pratinjau Transkrip</div><p class="step-sub" style="margin-left:0">Whisper large-v3 mengenali ucapan dalam banyak bahasa, termasuk Arab. Kosongkan bahasa untuk deteksi otomatis.</p>')
+                        gr.HTML('<div class="step-title">Pratinjau Transkrip</div><p class="step-sub" style="margin-left:0">Whisper large-v3 memakai konteks audio panjang. Isi bahasa jika tahu, misalnya Arabic; model akan memakai decoding lebih teliti, tetapi lebih lambat.</p>')
                         transcript_preview = gr.Textbox(label="Hasil", lines=26, max_lines=40, interactive=False, placeholder="Hasil transkrip akan muncul di sini.")
             transcript_start.click(
                 process_transcription,

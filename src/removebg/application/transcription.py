@@ -1,13 +1,13 @@
 import json
-import os
 import shutil
 import threading
 import uuid
+import wave
 from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
 import torch
-import imageio_ffmpeg
 from transformers import pipeline
 
 from removebg.application.service import safe_name
@@ -19,10 +19,17 @@ from removebg.infrastructure.youtube_transcription import download_audio
 MODEL_ID = "openai/whisper-large-v3"
 
 
+def load_audio_array(path: Path):
+    with wave.open(str(path), "rb") as audio:
+        if audio.getnchannels() != 1 or audio.getsampwidth() != 2:
+            raise ValueError("Audio WAV harus mono PCM 16-bit.")
+        sample_rate = audio.getframerate()
+        samples = np.frombuffer(audio.readframes(audio.getnframes()), dtype="<i2")
+    return {"raw": samples.astype(np.float32) / 32768.0, "sampling_rate": sample_rate}
+
+
 @lru_cache(maxsize=1)
 def transcriber():
-    ffmpeg_dir = str(Path(imageio_ffmpeg.get_ffmpeg_exe()).parent)
-    os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
     use_gpu = torch.cuda.is_available()
     return pipeline(
         "automatic-speech-recognition",
@@ -30,8 +37,6 @@ def transcriber():
         torch_dtype=torch.float16 if use_gpu else torch.float32,
         model_kwargs={"cache_dir": str(MODELS / "huggingface")},
         device=0 if use_gpu else -1,
-        chunk_length_s=30,
-        stride_length_s=(5, 5),
     )
 
 
@@ -106,13 +111,14 @@ def run_youtube_transcription(url, language, output_name, progress, cancel: thre
         options = {"task": "transcribe"}
         if str(language or "Auto").strip().lower() not in {"", "auto", "otomatis"}:
             options["language"] = str(language).strip()
+            options["num_beams"] = 2
         def interrupt_if_cancelled(_module, _inputs):
             if cancel.is_set():
                 raise Cancelled("Proses dibatalkan.")
 
         hook = model.model.register_forward_pre_hook(interrupt_if_cancelled)
         try:
-            result = model(str(wav), return_timestamps="word", generate_kwargs=options)
+            result = model(load_audio_array(wav), return_timestamps="word", generate_kwargs=options)
         finally:
             hook.remove()
         if cancel.is_set():

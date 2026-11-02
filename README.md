@@ -14,7 +14,8 @@ Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `mode
 ### Transkrip dan unduhan YouTube
 
 - Tempel URL satu video YouTube pada tab **Transkrip YouTube**. Audio diambil sementara, dikonversi ke WAV 16 kHz, lalu dianalisis di PC menggunakan Whisper large-v3. Tidak ada file video yang disimpan oleh alur transkrip.
-- Model Whisper large-v3 multilingual mendukung 99 bahasa, termasuk Arab, dan bahasa dapat dideteksi otomatis. Isikan nama/kode bahasa bila ingin menentukan bahasa secara manual.
+- Model Whisper large-v3 multilingual mendukung 99 bahasa, termasuk Arab, dan bahasa dapat dideteksi otomatis. Isikan nama/kode bahasa bila sudah diketahui; decoding memakai beam search untuk membantu mengurangi kesalahan pengenalan, dengan waktu proses lebih lama.
+- Transkripsi panjang diproses berurutan agar konteks antarbagiannya tetap terjaga. Ini mengutamakan ketepatan dibanding mode potongan cepat.
 - TXT berisi teks, SRT/VTT berisi timestamp kalimat, dan JSON menyimpan timestamp awal/akhir setiap kata serta kelompok kalimat. Timestamp kata merupakan estimasi alignment model; audio bising, ucapan tumpang tindih, aksen, dan kata yang salah dikenali dapat memengaruhi hasil.
 - Tab **Unduh YouTube** adalah fitur terpisah. Pilih kualitas Terbaik, 1080p, atau 720p untuk menyimpan video di folder output.
 - YouTube membutuhkan Node.js 22+ untuk menjalankan challenge solver yt-dlp. `setup.ps1` memeriksa versi Node sebelum instalasi.
