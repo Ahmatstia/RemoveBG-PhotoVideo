@@ -1,5 +1,6 @@
 import threading
 import subprocess
+import json
 from pathlib import Path
 
 import av
@@ -63,7 +64,7 @@ def test_tiktok_download_uses_public_provider_and_streams_video(tmp_path, monkey
             return None
 
         def json(self):
-            return self.payload
+            return self.payload if self.payload is not None else json.loads(self.text)
 
         def iter_content(self, chunk_size):
             assert chunk_size == 256 * 1024
@@ -106,6 +107,151 @@ def test_tiktok_download_uses_public_provider_and_streams_video(tmp_path, monkey
     assert result["size"] == 10
     assert Path(result["path"]).read_bytes() == b"videobytes"
     assert updates[-1] == (1, "Unduhan TikTok selesai.")
+
+
+def test_instagram_public_graphql_downloads_carousel_without_login(tmp_path, monkeypatch):
+    output_dir = tmp_path / "outputs"
+    monkeypatch.setattr(youtube_download, "OUTPUTS", output_dir)
+    monkeypatch.setattr(youtube_download, "prepare_dirs", lambda: output_dir.mkdir(parents=True, exist_ok=True))
+    image_urls = [f"https://scontent.cdninstagram.com/photo-{index}.jpg?stp=dst-jpg_e35_p1080x1080" for index in (1, 2)]
+
+    class Response:
+        headers = {"Content-Type": "image/jpeg"}
+
+        def __init__(self, payload=None, text=""):
+            self.payload = payload
+            self.text = text
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 256 * 1024
+            yield b"photo"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    class Cookies:
+        def get(self, key):
+            return "csrf-token" if key == "csrftoken" else None
+
+    class FakeSession:
+        def __init__(self):
+            self.headers = {}
+            self.cookies = Cookies()
+            self.get_calls = []
+
+        def get(self, url, **kwargs):
+            self.get_calls.append(url)
+            if url == "https://www.instagram.com/":
+                return Response(text='["LSD",[],{"token":"lsd-token"}')
+            if "get_ruling_for_content" in url:
+                return Response(payload={"status": "ok"})
+            return Response()
+
+        def post(self, url, **kwargs):
+            assert url == "https://www.instagram.com/api/graphql"
+            assert kwargs["data"]["doc_id"] == youtube_download._INSTAGRAM_POLARIS_POST_QUERY
+            assert json.loads(kwargs["data"]["variables"]) == {"media_id": "4021496157832799036"}
+            return Response(payload={"data": {"xig_polaris_media": {"if_not_gated_logged_out": {
+                "code": "DfPOXLhOOM8",
+                "carousel_media": [
+                    {"image_versions2": {"candidates": [
+                        {"url": image_url.replace("1080x1080", "320x320")},
+                        {"url": image_url},
+                    ]}}
+                    for image_url in image_urls
+                ],
+            }}}})
+
+        def close(self):
+            return None
+
+    session = FakeSession()
+    monkeypatch.setattr(youtube_download.requests, "Session", lambda: session)
+    result = youtube_download.run_instagram_photo_download(
+        "https://www.instagram.com/p/DfPOXLhOOM8/", "ig-carousel",
+        lambda *_: None, threading.Event(),
+    )
+
+    assert [image["filename"] for image in result["images"]] == ["ig-carousel-01.jpg", "ig-carousel-02.jpg"]
+    assert [Path(image["path"]).read_bytes() for image in result["images"]] == [b"photo", b"photo"]
+    assert session.get_calls[-2:] == image_urls
+
+
+def test_instagram_non_json_response_falls_back_to_public_preview(tmp_path, monkeypatch):
+    output_dir = tmp_path / "outputs"
+    monkeypatch.setattr(youtube_download, "OUTPUTS", output_dir)
+    monkeypatch.setattr(youtube_download, "prepare_dirs", lambda: output_dir.mkdir(parents=True, exist_ok=True))
+    thumbnail = "https://scontent.cdninstagram.com/preview.jpg"
+
+    class Response:
+        headers = {"Content-Type": "image/jpeg"}
+
+        def __init__(self, payload=None, text=""):
+            self.payload = payload
+            self.text = text
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return self.payload if self.payload is not None else json.loads(self.text)
+
+        def iter_content(self, chunk_size):
+            assert chunk_size == 256 * 1024
+            yield b"preview"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+    class Cookies:
+        def get(self, key):
+            return "csrf-token" if key == "csrftoken" else None
+
+    class FakeSession:
+        def __init__(self):
+            self.headers = {}
+            self.cookies = Cookies()
+            self.query_attempts = 0
+
+        def get(self, url, **_):
+            if url == "https://www.instagram.com/":
+                return Response(text='["LSD",[],{"token":"lsd-token"}')
+            if "get_ruling_for_content" in url:
+                return Response(payload={"status": "ok"})
+            if "oembed" in url:
+                return Response(payload={"type": "rich", "thumbnail_url": thumbnail})
+            return Response()
+
+        def post(self, *_args, **_kwargs):
+            self.query_attempts += 1
+            return Response(text="<html>Instagram page</html>")
+
+        def close(self):
+            return None
+
+    session = FakeSession()
+    monkeypatch.setattr(youtube_download.requests, "Session", lambda: session)
+    result = youtube_download.run_instagram_photo_download(
+        "https://www.instagram.com/p/DfPOXLhOOM8/", "ig-preview",
+        lambda *_: None, threading.Event(),
+    )
+
+    assert session.query_attempts == 2
+    assert len(result["images"]) == 1
+    assert result["notice"].startswith("Instagram hanya memberikan pratinjau")
+    assert Path(result["images"][0]["path"]).read_bytes() == b"preview"
 
 
 def test_tiktok_hd_hevc_is_converted_to_h264_at_same_resolution(tmp_path):

@@ -22,7 +22,7 @@ Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di folde
 - Transkripsi panjang diproses berurutan agar konteks antarbagiannya tetap terjaga. Ini mengutamakan ketepatan dibanding mode potongan cepat.
 - TXT berisi teks, SRT/VTT berisi timestamp kalimat, dan JSON menyimpan timestamp awal/akhir setiap kata serta kelompok kalimat. Timestamp kata merupakan estimasi alignment model; audio bising, ucapan tumpang tindih, aksen, dan kata yang salah dikenali dapat memengaruhi hasil.
 - Tab **Downloader** adalah fitur terpisah dari transkrip. Pilih platform, tempel tautan satu video, lalu pilih kualitas Terbaik, 1080p, atau 720p. Hasil ditampilkan di aplikasi dan tetap sementara sampai disimpan melalui tombol unduh.
-- Downloader memakai yt-dlp untuk YouTube, Instagram, dan Twitter/X. YouTube membutuhkan Node.js 22+ untuk menjalankan challenge solver. Video TikTok memakai API TikWM tanpa cookie browser; tautan TikTok dikirim ke server TikWM untuk memperoleh URL media. Video HD HEVC dikonversi menjadi H.264 MP4 dengan resolusi sumber yang sama agar kompatibel dengan pemutar Windows umum. Foto slideshow TikTok diambil satu per satu dengan gallery-dl. Tautan privat atau konten yang dibatasi platform mungkin gagal. API eksternal dan extractor dapat berubah sewaktu-waktu.
+- Downloader memakai yt-dlp untuk YouTube, video Instagram, dan Twitter/X. Foto slideshow TikTok diambil dengan gallery-dl. Foto publik Instagram diambil tanpa sesi login lewat endpoint web publik; jika data carousel tidak tersedia, aplikasi menampilkan pratinjau foto yang Instagram sediakan dan memberi tahu bahwa kualitas/jumlah foto terbatas. Posting privat, rate limit, dan perubahan endpoint dapat membatasi hasil. Video TikTok memakai API TikWM tanpa cookie browser; tautan TikTok dikirim ke server TikWM untuk memperoleh URL media. Video HD HEVC dikonversi menjadi H.264 MP4 dengan resolusi sumber yang sama agar kompatibel dengan pemutar Windows umum. API eksternal dan extractor dapat berubah sewaktu-waktu.
 - Model Whisper large-v3 berukuran beberapa GB dan diunduh saat fitur transkrip pertama kali dipakai. Model ini lebih mengutamakan akurasi daripada kecepatan; waktu proses bergantung pada panjang video dan GPU.
 
 `requirements-lock.txt` mengunci versi dependensi. Bobot model di-cache selama aplikasi hidup; recurrent state dan sesi tracking selalu baru untuk setiap file. Pemakaian pertama RVM membutuhkan warm-up TorchScript, sehingga klip pendek pertama dapat terasa jauh lebih lambat.
@@ -62,7 +62,7 @@ src/removebg/
   infrastructure/youtube_video.py # Pengunduh video YouTube, Instagram, dan Twitter/X
   infrastructure/youtube_common.py # Validasi tautan YouTube
   application/transcription.py # Whisper multilingual, kata dan timestamp, ekspor
-  application/youtube_download.py # Alur unduh video/foto TikTok dan penyimpanan hasil sementara
+  application/youtube_download.py # Alur unduh video platform, foto TikTok, dan foto Instagram publik
   domain.py                  # Metadata video dan validasi titik
   config.py                  # Lokasi output/model
 tests/test_pipeline.py       # Kontrak ekspor, timestamp, cleanup, audio, mask

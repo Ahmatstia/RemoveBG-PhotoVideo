@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from removebg.application.service import run_photo, run_video
 from removebg.application.transcription import run_youtube_transcription
-from removebg.application.youtube_download import run_tiktok_photo_download, run_tiktok_video_download, run_video_download
+from removebg.application.youtube_download import run_instagram_photo_download, run_tiktok_photo_download, run_tiktok_video_download, run_video_download
 from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
@@ -212,6 +212,43 @@ def run_job(job, payload):
                     )
                     files = {"result": register_file(job, "result", result["path"], Path(result["path"]).name, inline=True)}
                     metadata = {"title": result["title"], "size": result["size"]}
+                elif platform == "Instagram" and "/p/" in url.lower():
+                    photo_error = None
+                    try:
+                        result = run_instagram_photo_download(url, payload.get("name", ""), progress, cancel)
+                    except Cancelled:
+                        raise
+                    except Exception as error:
+                        photo_error = error
+                        result = None
+                    if result:
+                        files = {
+                            f"image_{index}": register_file(job, f"image_{index}", image["path"], image["filename"], inline=True)
+                            for index, image in enumerate(result["images"], 1)
+                        }
+                        metadata = {
+                            "title": result["title"], "images": len(result["images"]),
+                            "notice": result.get("notice"),
+                        }
+                    else:
+                        try:
+                            result = run_video_download(
+                                url, platform, payload.get("quality", "Terbaik"), payload.get("name", ""), progress, cancel,
+                            )
+                        except Exception as video_error:
+                            if photo_error:
+                                photo_message = str(photo_error).lower()
+                                if "no video" in str(video_error).lower() and any(
+                                    text in photo_message for text in ("login", "tanpa login", "akses publik")
+                                ):
+                                    raise ValueError(
+                                        "Instagram tidak membuka foto posting ini melalui akses publik tanpa login. "
+                                        "Jalur video tidak berlaku karena posting tersebut tidak berisi video."
+                                    ) from video_error
+                                raise ValueError(f"Gagal mengambil media Instagram. Foto: {photo_error} Video: {video_error}") from video_error
+                            raise
+                        files = {"result": register_file(job, "result", result["path"], Path(result["path"]).name, inline=True)}
+                        metadata = {"title": result["title"], "size": result["size"]}
                 else:
                     result = run_video_download(
                         url, platform, payload.get("quality", "Terbaik"), payload.get("name", ""), progress, cancel,

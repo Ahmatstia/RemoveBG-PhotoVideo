@@ -4,6 +4,7 @@ import sys
 import threading
 import uuid
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import av
 import imageio_ffmpeg
@@ -13,6 +14,9 @@ from removebg.application.service import safe_name
 from removebg.config import OUTPUTS, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.youtube_video import download_video, platform_url
+
+_INSTAGRAM_POLARIS_POST_QUERY = "27130156389949648"
+_INSTAGRAM_LSD_PATTERN = r'\["LSD",\[\],\{"token":"([^"]+)"'
 
 
 def run_tiktok_video_download(url, output_name, progress, cancel: threading.Event):
@@ -181,6 +185,7 @@ def run_tiktok_photo_download(url, output_name, progress, cancel: threading.Even
             key=lambda path: (0, int(path.stem)) if path.stem.isdigit() else (1, path.name.lower()),
         )
         if not images:
+            shutil.rmtree(job, ignore_errors=True)
             raise ValueError("Posting TikTok tidak menghasilkan foto yang bisa diunduh.")
         safe_stem = safe_name(output_name, "foto-tiktok")
         results = []
@@ -195,6 +200,176 @@ def run_tiktok_photo_download(url, output_name, progress, cancel: threading.Even
     except BaseException:
         shutil.rmtree(job, ignore_errors=True)
         raise
+
+
+def run_instagram_photo_download(url, output_name, progress, cancel: threading.Event):
+    """Download public Instagram post photos using its logged-out media query."""
+    import json
+    import re
+
+    import requests
+
+    clean_url = platform_url(url, "Instagram")
+    match = re.search(r"/p/([A-Za-z0-9_-]+)", urlparse(clean_url).path)
+    if not match:
+        return None
+    shortcode = match.group(1)
+    media_id = 0
+    for char in shortcode:
+        try:
+            media_id = media_id * 64 + "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_".index(char)
+        except ValueError as error:
+            raise ValueError("Tautan posting Instagram tidak valid.") from error
+
+    prepare_dirs()
+    job = OUTPUTS / uuid.uuid4().hex[:12]
+    job.mkdir()
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Origin": "https://www.instagram.com",
+        "Referer": "https://www.instagram.com/",
+        "X-IG-App-ID": "936619743392459",
+        "X-ASBD-ID": "198387",
+        "X-IG-WWW-Claim": "0",
+    })
+    try:
+        if cancel.is_set():
+            raise Cancelled("Proses dibatalkan.")
+        query_name = "PolarisLoggedOutDesktopWWWPostRootContentQuery"
+        media = None
+        extraction_error = None
+        for attempt in range(2):
+            if cancel.is_set():
+                raise Cancelled("Proses dibatalkan.")
+            progress(0.02 + attempt * 0.02, "Mengambil data posting foto Instagram publik…")
+            try:
+                home = session.get("https://www.instagram.com/", timeout=(10, 20))
+                home.raise_for_status()
+                token_match = re.search(_INSTAGRAM_LSD_PATTERN, home.text)
+                csrf = session.cookies.get("csrftoken")
+                if not token_match or not csrf:
+                    raise ValueError("Instagram tidak memberikan token akses publik untuk posting ini.")
+                lsd = token_match.group(1)
+                ruling = session.get(
+                    "https://i.instagram.com/api/v1/web/get_ruling_for_content/",
+                    params={"content_type": "MEDIA", "target_id": str(media_id)},
+                    timeout=(10, 20),
+                )
+                ruling.raise_for_status()
+                ruling_data = ruling.json()
+                if (ruling_data or {}).get("status") != "ok":
+                    raise ValueError("Instagram tidak membuka posting ini untuk akses tanpa login.")
+                query = session.post(
+                    "https://www.instagram.com/api/graphql",
+                    headers={
+                        "X-FB-Friendly-Name": query_name,
+                        "X-CSRFToken": csrf,
+                        "X-FB-LSD": lsd,
+                        "X-Requested-With": "XMLHttpRequest",
+                        "Referer": f"https://www.instagram.com/p/{shortcode}/",
+                    },
+                    data={
+                        "lsd": lsd,
+                        "fb_api_caller_class": "RelayModern",
+                        "fb_api_req_friendly_name": query_name,
+                        "server_timestamps": "true",
+                        "variables": json.dumps({"media_id": str(media_id)}, separators=(",", ":")),
+                        "doc_id": _INSTAGRAM_POLARIS_POST_QUERY,
+                    },
+                    timeout=(10, 25),
+                )
+                query.raise_for_status()
+                data = query.json()
+                media = (((data.get("data") or {}).get("xig_polaris_media") or {}).get("if_not_gated_logged_out") or {})
+                if media:
+                    break
+                raise ValueError("Instagram tidak mengembalikan data media publik untuk posting ini.")
+            except (ValueError, requests.exceptions.JSONDecodeError) as error:
+                extraction_error = error
+                if attempt == 0:
+                    continue
+        photos = []
+        if media:
+            for child in media.get("carousel_media") or [media]:
+                if child.get("video_versions"):
+                    continue
+                candidates = (child.get("image_versions2") or {}).get("candidates") or []
+                candidates = [candidate for candidate in candidates if candidate.get("url")]
+                if candidates:
+                    def resolution(candidate):
+                        width = candidate.get("width") or 0
+                        height = candidate.get("height") or 0
+                        if not width or not height:
+                            stp = parse_qs(urlparse(candidate["url"]).query).get("stp", [""])[0]
+                            dimensions = re.search(r"_p(\d+)x(\d+)", stp)
+                            if dimensions:
+                                width, height = map(int, dimensions.groups())
+                        return width * height
+
+                    photos.append(max(candidates, key=resolution)["url"])
+        preview_only = False
+        if not photos and media:
+            shutil.rmtree(job, ignore_errors=True)
+            return None
+        if not photos:
+            try:
+                preview = session.get(
+                    "https://www.instagram.com/api/v1/oembed/",
+                    params={"url": clean_url},
+                    timeout=(10, 20),
+                )
+                preview.raise_for_status()
+                preview_data = preview.json()
+                thumbnail = preview_data.get("thumbnail_url")
+                if preview_data.get("type") != "rich" or not thumbnail:
+                    raise ValueError("Instagram tidak menyediakan pratinjau foto publik.")
+                photos = [thumbnail]
+                preview_only = True
+            except (requests.RequestException, ValueError) as fallback_error:
+                raise ValueError(
+                    "Instagram tidak mengirim data foto setelah dicoba ulang; "
+                    f"pratinjau publik juga gagal ({fallback_error})."
+                ) from extraction_error
+
+        stem = safe_name(output_name, f"foto-instagram-{shortcode}")
+        results = []
+        for index, image_url in enumerate(photos, 1):
+            if cancel.is_set():
+                raise Cancelled("Proses dibatalkan.")
+            parsed = urlparse(image_url)
+            host = (parsed.hostname or "").lower()
+            if parsed.scheme != "https" or not (host.endswith("fbcdn.net") or host.endswith("cdninstagram.com")):
+                raise ValueError("Instagram mengembalikan tautan foto yang tidak valid.")
+            progress(0.1 + 0.85 * (index - 1) / len(photos), f"Mengunduh foto Instagram {index}/{len(photos)}…")
+            with session.get(image_url, stream=True, timeout=(10, 45)) as response:
+                response.raise_for_status()
+                media_type = response.headers.get("Content-Type", "").lower().split(";", 1)[0]
+                extensions = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
+                extension = extensions.get(media_type)
+                if not extension:
+                    raise ValueError("Instagram tidak mengembalikan file foto yang didukung.")
+                final = job / f"{stem}-{index:02d}{extension}"
+                with final.open("wb") as target:
+                    for chunk in response.iter_content(chunk_size=256 * 1024):
+                        if cancel.is_set():
+                            raise Cancelled("Proses dibatalkan.")
+                        if chunk:
+                            target.write(chunk)
+            results.append({"path": str(final), "filename": final.name, "size": final.stat().st_size})
+
+        progress(1, f"{len(results)} foto Instagram siap.")
+        result = {"title": stem, "images": results}
+        if preview_only:
+            result["notice"] = "Instagram hanya memberikan pratinjau foto; kualitas dan jumlah foto carousel mungkin terbatas."
+        return result
+    except BaseException:
+        shutil.rmtree(job, ignore_errors=True)
+        raise
+    finally:
+        session.close()
 
 
 def run_video_download(url, platform, quality, output_name, progress, cancel: threading.Event):
