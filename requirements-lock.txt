@@ -29,6 +29,8 @@ fsspec==2026.7.0
     # via
     #   huggingface-hub
     #   torch
+gallery-dl==1.32.19
+    # via removebg-local (pyproject.toml)
 h11==0.16.0
     # via uvicorn
 huggingface-hub==0.36.2
@@ -86,6 +88,8 @@ regex==2026.9.29
     # via transformers
 requests==2.34.2
     # via
+    #   removebg-local (pyproject.toml)
+    #   gallery-dl
     #   huggingface-hub
     #   transformers
 safetensors==0.8.0

@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from removebg.application.service import run_photo, run_video
 from removebg.application.transcription import run_youtube_transcription
-from removebg.application.youtube_download import run_video_download
+from removebg.application.youtube_download import run_tiktok_photo_download, run_tiktok_video_download, run_video_download
 from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
@@ -197,12 +197,27 @@ def run_job(job, payload):
                 }
                 metadata = {key: result[key] for key in ("text", "title", "words", "sentences")}
             elif kind == "download":
-                result = run_video_download(
-                    payload.get("url", ""), payload.get("platform", "YouTube"),
-                    payload.get("quality", "Terbaik"), payload.get("name", ""), progress, cancel,
-                )
-                files = {"result": register_file(job, "result", result["path"], Path(result["path"]).name, inline=True)}
-                metadata = {"title": result["title"], "size": result["size"]}
+                url = str(payload.get("url", ""))
+                platform = payload.get("platform", "YouTube")
+                if platform == "TikTok" and "/photo/" in url.lower():
+                    result = run_tiktok_photo_download(url, payload.get("name", ""), progress, cancel)
+                    files = {
+                        f"image_{index}": register_file(job, f"image_{index}", image["path"], image["filename"], inline=True)
+                        for index, image in enumerate(result["images"], 1)
+                    }
+                    metadata = {"title": result["title"], "images": len(result["images"])}
+                elif platform == "TikTok":
+                    result = run_tiktok_video_download(
+                        url, payload.get("name", ""), progress, cancel,
+                    )
+                    files = {"result": register_file(job, "result", result["path"], Path(result["path"]).name, inline=True)}
+                    metadata = {"title": result["title"], "size": result["size"]}
+                else:
+                    result = run_video_download(
+                        url, platform, payload.get("quality", "Terbaik"), payload.get("name", ""), progress, cancel,
+                    )
+                    files = {"result": register_file(job, "result", result["path"], Path(result["path"]).name, inline=True)}
+                    metadata = {"title": result["title"], "size": result["size"]}
             else:
                 raise ValueError("Jenis pekerjaan tidak dikenal.")
             with state_lock:

@@ -24,7 +24,7 @@ type Job = {
   message: string;
   error?: string | null;
   result?: {
-    title?: string; text?: string; words?: number; sentences?: number; size?: number;
+    title?: string; text?: string; words?: number; sentences?: number; size?: number; images?: number;
     report?: { frames: number; processed_seconds: number };
     files: Record<string, FileResult>;
   } | null;
@@ -240,8 +240,8 @@ export default function Home() {
 
               {feature === "download" && <>
                 <div className="field"><label className="field-label" htmlFor="platform">Platform</label><select id="platform" className="control select-control" value={platform} onChange={(event) => setPlatform(event.target.value)}>{["YouTube", "Instagram", "TikTok", "Twitter/X"].map((item) => <option key={item}>{item}</option>)}</select></div>
-                <div className="field"><label className="field-label" htmlFor="download-url">Tautan video</label><input id="download-url" className="control" type="url" value={downloadUrl} onChange={(event) => setDownloadUrl(event.target.value)} placeholder="Tempel tautan video" /><p className="field-hint">Konten privat atau yang dibatasi login mungkin gagal.</p></div>
-                <div className="field"><label className="field-label">Kualitas</label><div className="choice-row">{["Terbaik", "1080p", "720p"].map((value) => <label className="choice" key={value}><input type="radio" checked={downloadQuality === value} onChange={() => setDownloadQuality(value)} />{value}</label>)}</div></div>
+                <div className="field"><label className="field-label" htmlFor="download-url">Tautan video atau posting foto TikTok</label><input id="download-url" className="control" type="url" value={downloadUrl} onChange={(event) => setDownloadUrl(event.target.value)} placeholder="Tempel tautan video atau foto TikTok" /><p className="field-hint">Posting foto diambil langsung tanpa sesi login. Video memakai TikWM tanpa login, lalu diubah ke H.264 MP4 agar kompatibel di Windows dengan resolusi sumber tetap dipertahankan. URL publik dikirim ke TikWM.</p></div>
+                {platform !== "TikTok" && <div className="field"><label className="field-label">Kualitas</label><div className="choice-row">{["Terbaik", "1080p", "720p"].map((value) => <label className="choice" key={value}><input type="radio" checked={downloadQuality === value} onChange={() => setDownloadQuality(value)} />{value}</label>)}</div></div>}
                 <div className="field"><label className="field-label" htmlFor="download-name">Nama file (opsional)</label><input id="download-name" className="control" value={name} onChange={(event) => setName(event.target.value)} placeholder="otomatis dari judul video" /></div>
               </>}
 
@@ -254,7 +254,7 @@ export default function Home() {
               {job && job.kind === feature && <div className="progress-card" aria-live="polite"><div className="progress-top"><span>{job.message}</span><strong>{Math.round(job.progress * 100)}%</strong></div><div className="progress-track"><div className="progress-fill" style={{ width: Math.max(2, job.progress * 100) + "%" }} /></div></div>}
               {error && <div className="error-box" role="alert">{error}</div>}
               {job?.kind === feature && job.state === "cancelled" && <div className="error-box">Proses dibatalkan.</div>}
-              {jobResult && <div className="success-box"><Check size={14} style={{ verticalAlign: "-3px", marginRight: 5 }} />Selesai{jobResult.title ? " · " + jobResult.title : ""}{jobResult.words ? " · " + jobResult.words + " kata" : ""}</div>}
+              {jobResult && <div className="success-box"><Check size={14} style={{ verticalAlign: "-3px", marginRight: 5 }} />Selesai{jobResult.title ? " · " + jobResult.title : ""}{jobResult.words ? " · " + jobResult.words + " kata" : ""}{jobResult.images ? " · " + jobResult.images + " foto" : ""}</div>}
               <div className="privacy-note"><ShieldCheck size={15} />Hasil ditampilkan di sini dan disimpan sementara. Simpan salinan hanya dengan menekan tombol unduh.</div>
             </div>
 
@@ -263,6 +263,7 @@ export default function Home() {
               {feature === "video" && files?.preview ? <><video className="preview-video" src={fileUrl(files.preview)} controls playsInline preload="metadata" /><FileDownload file={files.result} /><p className="field-hint">Pratinjau hanya menampilkan 5 detik pertama. File lengkap dapat disimpan lewat tombol di atas.</p></>
                 : feature === "photo" && files?.result ? <><img className="preview-image" src={fileUrl(files.result)} alt="Hasil foto tanpa latar" /><FileDownload file={files.result} /></>
                 : feature === "download" && files?.result ? <><video className="preview-video" src={fileUrl(files.result)} controls playsInline preload="metadata" /><div className="result-meta result-size">{jobResult?.size ? (jobResult.size / 1048576).toFixed(1) + " MB" : ""}</div><FileDownload file={files.result} /></>
+                  : feature === "download" && files && jobResult?.images ? <div className="photo-gallery">{Object.entries(files).map(([key, file], index) => <article className="photo-card" key={key}><img className="preview-image" src={fileUrl(file)} alt={`Foto TikTok ${index + 1}`} /><div className="photo-card-footer"><span>Foto {index + 1}</span><a className="secondary-button" href={fileUrl(file, true)}><ArrowDownToLine size={15} />Unduh</a></div></article>)}</div>
                     : feature === "transcription" && jobResult?.text ? <><div className="transcript-output">{jobResult.text}</div><div className="file-links">{["txt", "srt", "vtt", "json"].map((key) => <a className="file-link" href={fileUrl(files?.[key], true)} key={key}><FileText size={14} />{key.toUpperCase()}</a>)}</div></>
                       : <div className="empty-preview"><div><Monitor size={25} /><div>Pilih alat dan mulai pekerjaan.<br />Pratinjau akan tampil di area ini.</div></div></div>}
             </div>
@@ -289,9 +290,9 @@ function featureDescription(feature: Feature) {
     video: "Hilangkan latar video dengan model lokal. Pilih manusia atau tandai objek yang ingin dipertahankan.",
     photo: "Buat foto transparan. Pilih deteksi manusia atau tandai objek secara manual.",
     transcription: "Ubah ucapan YouTube menjadi teks multilingual dengan timestamp per kata.",
-    download: "Simpan satu video dari YouTube, Instagram, TikTok, atau Twitter/X.",
+    download: "Unduh video dari YouTube, Instagram, TikTok, atau Twitter/X. Video TikTok disiapkan sebagai H.264 MP4; posting foto ditampilkan sebagai galeri.",
   }[feature];
 }
 function featureAction(feature: Feature) {
-  return { video: "Proses video", photo: "Hapus latar", transcription: "Buat transkrip", download: "Unduh video" }[feature];
+  return { video: "Proses video", photo: "Hapus latar", transcription: "Buat transkrip", download: "Unduh media" }[feature];
 }

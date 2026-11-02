@@ -112,6 +112,10 @@ textarea.control { min-height: 100px; resize: vertical; }
 .empty-preview { display: grid; place-items: center; min-height: 250px; padding: 22px; border: 1px dashed #dce4df; border-radius: 12px; background: #fafcfb; color: #96a19c; text-align: center; font-size: 12px; }
 .empty-preview svg { margin-bottom: 8px; color: #a9b5af; }
 .preview-image { display: block; width: 100%; max-height: 480px; border: 1px solid var(--border); border-radius: 12px; background: repeating-conic-gradient(#eef1ef 0% 25%, white 0% 50%) 50% / 18px 18px; object-fit: contain; }
+.photo-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px; align-content: start; }
+.photo-card { min-width: 0; padding: 9px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+.photo-card .preview-image { height: 220px; max-height: 220px; }
+.photo-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 9px; color: var(--muted); font-size: 13px; }
 .preview-video { display: block; width: 100%; max-height: 480px; border-radius: 12px; background: #101514; }
 .result-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
 .result-heading h3 { margin: 0; font-size: 13px; font-weight: 800; }
