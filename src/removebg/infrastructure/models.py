@@ -23,6 +23,12 @@ def release_gpu():
         torch.cuda.empty_cache()
 
 
+def release_cached_models():
+    human_network.cache_clear()
+    object_network.cache_clear()
+    release_gpu()
+
+
 def rvm_path():
     prepare_dirs()
     path = MODELS / "rvm_mobilenetv3_fp32.torchscript"

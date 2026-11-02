@@ -12,6 +12,8 @@ import torch
 from PIL import Image, ImageDraw
 
 from removebg.application.service import run_photo, run_video
+from removebg.application.transcription import run_youtube_transcription
+from removebg.application.youtube_download import run_youtube_download
 from removebg.config import OUTPUTS, ROOT, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
@@ -143,6 +145,49 @@ def process_photo(path, mode, quality, points, name):
         raise gr.Error(str(error)) from error
 
 
+def process_transcription(url, language, name, request: gr.Request, progress=gr.Progress()):  # noqa: B008 - Gradio injects progress via this default.
+    if not str(url or "").strip():
+        raise gr.Error("Tempel tautan video YouTube terlebih dahulu.")
+    cancel = threading.Event()
+    running[request.session_hash] = cancel
+    try:
+        result = run_youtube_transcription(
+            url, language, name,
+            lambda fraction, description: progress(fraction, desc=description), cancel,
+        )
+        status = f"✅ **Selesai** · {result['title']} · {result['sentences']} kalimat · {result['words']} kata"
+        return result["text"], result["txt"], result["srt"], result["vtt"], result["json"], status
+    except Cancelled:
+        return "", None, None, None, None, "Proses transkrip dibatalkan."
+    except torch.cuda.OutOfMemoryError as error:
+        raise gr.Error("VRAM tidak cukup untuk model Whisper. Tutup aplikasi GPU lain, lalu coba lagi.") from error
+    except Exception as error:
+        logger.exception("YouTube transcription failed")
+        raise gr.Error(str(error)) from error
+    finally:
+        running.pop(request.session_hash, None)
+
+
+def process_youtube_download(url, quality, name, request: gr.Request, progress=gr.Progress()):  # noqa: B008 - Gradio injects progress via this default.
+    if not str(url or "").strip():
+        raise gr.Error("Tempel tautan video YouTube terlebih dahulu.")
+    cancel = threading.Event()
+    running[request.session_hash] = cancel
+    try:
+        result = run_youtube_download(
+            url, quality, name,
+            lambda fraction, description: progress(fraction, desc=description), cancel,
+        )
+        return result["path"], f"✅ **Selesai** · {result['title']} · {result['size'] / (1024 * 1024):.1f} MB"
+    except Cancelled:
+        return None, "Unduhan dibatalkan."
+    except Exception as error:
+        logger.exception("YouTube video download failed")
+        raise gr.Error(str(error)) from error
+    finally:
+        running.pop(request.session_hash, None)
+
+
 SUBJECTS = [("🧍 Manusia (Otomatis)", "Manusia"), ("📦 Objek (Pilih Titik)", "Objek umum")]
 POINTS = [("🟢 Simpan", "Pertahankan"), ("🔴 Hapus", "Buang")]
 QUALITIES = [("✨ Detail", "Detail"), ("⚡ Cepat", "Cepat")]
@@ -165,11 +210,11 @@ def toggle_subject(subject):
 def hero(gpu):
     return f"""<div class="hero">
   <div class="hero-top"><div class="logo">✂</div><h1>RemoveBG <span>Local</span></h1></div>
-  <p>Hapus latar belakang video dan foto secara instan, rapi, dan 100% offline.</p>
+  <p>Hapus latar video dan foto, buat transkrip multilingual, dan simpan video YouTube langsung dari PC-mu.</p>
   <div class="chips">
     <span class="chip">⚡ {gpu}</span>
     <span class="chip ok">🔊 Audio Utuh</span>
-    <span class="chip ok">🔒 100% Offline</span>
+    <span class="chip ok">🔒 Pemrosesan lokal</span>
   </div>
 </div>"""
 
@@ -256,7 +301,59 @@ def build_app():
                 concurrency_id="gpu",
                 concurrency_limit=1,
             )
-        gr.HTML('<div class="footer-note">RemoveBG Local · 100% Offline &amp; Privat · Hasil tersimpan di <code>data/outputs</code></div>')
+        with gr.Tab("📝 Transkrip YouTube"):
+            with gr.Row(equal_height=False):
+                with gr.Column(scale=4):
+                    with gr.Group(elem_classes="card"):
+                        step(1, "Tautan YouTube", "Fitur ini menghasilkan transkrip; file video tidak disimpan.")
+                        transcript_url = gr.Textbox(label="URL video", placeholder="https://www.youtube.com/watch?v=…", max_lines=1)
+                        transcript_language = gr.Textbox(label="Bahasa (opsional)", value="Auto", placeholder="Auto, Arabic, Indonesian, English…", max_lines=1)
+                        transcript_name = gr.Textbox(label="Nama file", placeholder="otomatis dari judul video", max_lines=1)
+                        transcript_start = gr.Button("🚀 Buat Transkrip", variant="primary", size="lg")
+                        transcript_cancel = gr.Button("Batal", variant="stop", size="sm")
+                        transcript_status = gr.Markdown("Siap membuat transkrip.", elem_classes="status")
+                    with gr.Group(elem_classes="card"):
+                        step(2, "Unduh hasil transkrip", "SRT/VTT berisi waktu per kalimat. JSON berisi waktu tiap kata.")
+                        transcript_txt = gr.File(label="Teks (.txt)", interactive=False)
+                        transcript_srt = gr.File(label="Subtitle (.srt)", interactive=False)
+                        transcript_vtt = gr.File(label="Subtitle Web (.vtt)", interactive=False)
+                        transcript_json = gr.File(label="Kata + timestamp (.json)", interactive=False)
+                with gr.Column(scale=6):
+                    with gr.Group(elem_classes="card"):
+                        gr.HTML('<div class="step-title">Pratinjau Transkrip</div><p class="step-sub" style="margin-left:0">Whisper large-v3 mengenali ucapan dalam banyak bahasa, termasuk Arab. Kosongkan bahasa untuk deteksi otomatis.</p>')
+                        transcript_preview = gr.Textbox(label="Hasil", lines=26, max_lines=40, interactive=False, placeholder="Hasil transkrip akan muncul di sini.")
+            transcript_start.click(
+                process_transcription,
+                [transcript_url, transcript_language, transcript_name],
+                [transcript_preview, transcript_txt, transcript_srt, transcript_vtt, transcript_json, transcript_status],
+                concurrency_id="gpu",
+                concurrency_limit=1,
+            )
+            transcript_cancel.click(stop, outputs=transcript_status, queue=False)
+        with gr.Tab("⬇️ Unduh YouTube"):
+            with gr.Row(equal_height=False):
+                with gr.Column(scale=5):
+                    with gr.Group(elem_classes="card"):
+                        step(1, "Tautan YouTube", "Fitur ini mengunduh file video dan tidak membuat transkrip.")
+                        download_url = gr.Textbox(label="URL video", placeholder="https://www.youtube.com/watch?v=…", max_lines=1)
+                        download_quality = gr.Radio(["Terbaik", "1080p", "720p"], value="Terbaik", label="Kualitas video", elem_classes="choice")
+                        download_name = gr.Textbox(label="Nama file (opsional)", placeholder="otomatis dari judul video", max_lines=1)
+                        download_start = gr.Button("🚀 Unduh Video", variant="primary", size="lg")
+                        download_cancel = gr.Button("Batal", variant="stop", size="sm")
+                        download_status = gr.Markdown("Siap mengunduh video.", elem_classes="status")
+                with gr.Column(scale=5):
+                    with gr.Group(elem_classes="card"):
+                        gr.HTML('<div class="step-title">File Video</div><p class="step-sub" style="margin-left:0">File tersimpan di folder output project dan dapat diunduh dari sini.</p>')
+                        download_result = gr.File(label="Hasil Video", interactive=False)
+            download_start.click(
+                process_youtube_download,
+                [download_url, download_quality, download_name],
+                [download_result, download_status],
+                concurrency_id="youtube-download",
+                concurrency_limit=1,
+            )
+            download_cancel.click(stop, outputs=download_status, queue=False)
+        gr.HTML('<div class="footer-note">RemoveBG Local · AI berjalan di PC · Hasil tersimpan di <code>data/outputs</code></div>')
     return app
 
 

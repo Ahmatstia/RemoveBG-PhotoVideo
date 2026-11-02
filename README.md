@@ -1,17 +1,26 @@
 # RemoveBG Local
 
-Tool lokal Windows untuk menghapus latar video (prioritas) dan foto. Ditargetkan untuk RTX 3050 Laptop 6 GB; input video SDR hingga 1920×1080 / 1080×1920 dan 15 menit. Tidak memerlukan akun atau layanan cloud.
+Tool Windows lokal untuk menghapus latar video/foto, membuat transkrip multilingual dari YouTube, dan mengunduh video YouTube. Pemrosesan AI berjalan di PC tanpa layanan transkripsi cloud. Fitur YouTube dan unduhan model pertama kali memerlukan internet. Penghapusan latar ditargetkan untuk RTX 3050 Laptop 6 GB; input video SDR hingga 1920×1080 / 1080×1920 dan 15 menit.
 
 ## Menjalankan
 
-1. Instal Python 3.11, [uv](https://docs.astral.sh/uv/getting-started/installation/), dan driver NVIDIA yang mendukung CUDA 12.8.
+1. Instal Python 3.11, [uv](https://docs.astral.sh/uv/getting-started/installation/), [Node.js 22+](https://nodejs.org/), dan driver NVIDIA yang mendukung CUDA 12.8.
 2. Buka PowerShell di folder proyek, lalu jalankan `./setup.ps1` sekali. PyTorch CUDA mengunduh beberapa GB.
 3. Klik dua kali `run.bat` atau jalankan `./run.ps1`. Browser membuka alamat lokal yang ditampilkan terminal (biasanya http://127.0.0.1:7860).
-4. Pilih video, pilih jenis subjek, lalu **Uji 5 detik pertama**. Jika hasil sesuai, jalankan **Proses video lengkap**.
+4. Pilih tab **Video** atau **Foto** untuk menghapus latar. Tab **Transkrip YouTube** menghasilkan TXT, SRT, VTT, dan JSON kata beserta timestamp. Tab **Unduh YouTube** menyimpan video.
 
-Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `models/`. Setelah model tersimpan, pemrosesan bisa dijalankan tanpa internet. Gradio tidak menggunakan share link; analytics Gradio dan telemetry Hugging Face dinonaktifkan.
+Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `models/`. Setelah model tersimpan, penghapusan latar dan transkripsi file lokal bisa dijalankan tanpa internet; mengambil konten dari YouTube tetap memerlukan internet. Gradio tidak menggunakan share link; analytics Gradio dan telemetry Hugging Face dinonaktifkan.
 
-`requirements-lock.txt` merekam versi yang diuji. Bobot model di-cache selama aplikasi hidup; recurrent state dan sesi tracking selalu baru untuk setiap file. Pemakaian pertama RVM membutuhkan warm-up TorchScript, sehingga klip pendek pertama dapat terasa jauh lebih lambat.
+### Transkrip dan unduhan YouTube
+
+- Tempel URL satu video YouTube pada tab **Transkrip YouTube**. Audio diambil sementara, dikonversi ke WAV 16 kHz, lalu dianalisis di PC menggunakan Whisper large-v3. Tidak ada file video yang disimpan oleh alur transkrip.
+- Model Whisper large-v3 multilingual mendukung 99 bahasa, termasuk Arab, dan bahasa dapat dideteksi otomatis. Isikan nama/kode bahasa bila ingin menentukan bahasa secara manual.
+- TXT berisi teks, SRT/VTT berisi timestamp kalimat, dan JSON menyimpan timestamp awal/akhir setiap kata serta kelompok kalimat. Timestamp kata merupakan estimasi alignment model; audio bising, ucapan tumpang tindih, aksen, dan kata yang salah dikenali dapat memengaruhi hasil.
+- Tab **Unduh YouTube** adalah fitur terpisah. Pilih kualitas Terbaik, 1080p, atau 720p untuk menyimpan video di folder output.
+- YouTube membutuhkan Node.js 22+ untuk menjalankan challenge solver yt-dlp. `setup.ps1` memeriksa versi Node sebelum instalasi.
+- Model Whisper large-v3 berukuran beberapa GB dan diunduh saat fitur transkrip pertama kali dipakai. Model ini lebih mengutamakan akurasi daripada kecepatan; waktu proses bergantung pada panjang video dan GPU.
+
+`requirements-lock.txt` mengunci versi dependensi. Bobot model di-cache selama aplikasi hidup; recurrent state dan sesi tracking selalu baru untuk setiap file. Pemakaian pertama RVM membutuhkan warm-up TorchScript, sehingga klip pendek pertama dapat terasa jauh lebih lambat.
 
 ### Pilihan model
 
@@ -45,6 +54,11 @@ src/removebg/
   application/service.py     # Urutan proses video/foto, lifecycle job dan hasil
   infrastructure/models.py   # Adapter RVM/SAM, CUDA, download/cache dan memori
   infrastructure/media.py    # PyAV decode/encode, FFmpeg audio, preview
+  infrastructure/youtube_transcription.py # Audio YouTube sementara untuk transkripsi
+  infrastructure/youtube_video.py # Pengunduh video YouTube terpisah
+  infrastructure/youtube_common.py # Validasi tautan YouTube
+  application/transcription.py # Whisper multilingual, kata dan timestamp, ekspor
+  application/youtube_download.py # Alur unduh video dan penyimpanan hasil
   domain.py                  # Metadata video dan validasi titik
   config.py                  # Lokasi output/model
 tests/test_pipeline.py       # Kontrak ekspor, timestamp, cleanup, audio, mask

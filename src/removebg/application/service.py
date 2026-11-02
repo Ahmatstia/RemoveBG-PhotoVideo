@@ -40,6 +40,9 @@ def safe_name(name, default):
 
 
 def run_video(path, mode, quality, points, export, preview_only, cancel, progress, model_factory=create_model, output_name=None):
+    from removebg.application.transcription import unload_transcriber
+
+    unload_transcriber()
     info, _ = inspect_video(path)
     if mode == "Objek umum":
         validate_points(points, info.width, info.height)
@@ -159,6 +162,9 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
 
 
 def run_photo(path, mode, quality, points, model_factory=create_model, output_name=None):
+    from removebg.application.transcription import unload_transcriber
+
+    unload_transcriber()
     rgb = read_photo(path)
     if min(rgb.shape[:2]) > 2160 or max(rgb.shape[:2]) > 3840:
         raise ValueError("Foto maksimal 3840×2160 / 2160×3840 untuk penggunaan VRAM yang terkendali.")

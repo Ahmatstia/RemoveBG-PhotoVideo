@@ -67,5 +67,7 @@ typing-extensions==4.16.0
 typing-inspection==0.4.4
 tzdata==2026.5
 urllib3==2.8.0
+yt-dlp==2026.10.26
 uvicorn==0.54.0
 websockets==15.0.1
+yt-dlp-ejs==0.8.0
