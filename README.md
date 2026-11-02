@@ -7,7 +7,7 @@ Tool Windows lokal untuk menghapus latar video/foto, membuat transkrip multiling
 1. Instal Python 3.11, [uv](https://docs.astral.sh/uv/getting-started/installation/), [Node.js 22+](https://nodejs.org/), dan driver NVIDIA yang mendukung CUDA 12.8.
 2. Buka PowerShell di folder proyek, lalu jalankan `./setup.ps1` sekali. PyTorch CUDA mengunduh beberapa GB.
 3. Klik dua kali `run.bat` atau jalankan `./run.ps1`. Browser membuka alamat lokal yang ditampilkan terminal (biasanya http://127.0.0.1:7860).
-4. Pilih tab **Video** atau **Foto** untuk menghapus latar. Tab **Transkrip YouTube** menghasilkan TXT, SRT, VTT, dan JSON kata beserta timestamp. Tab **Unduh YouTube** menyimpan video.
+4. Pilih tab **Video** atau **Foto** untuk menghapus latar. Tab **Transkrip YouTube** menghasilkan TXT, SRT, VTT, dan JSON kata beserta timestamp. Tab **Downloader** mendukung YouTube, Instagram, TikTok, dan Twitter/X.
 
 Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `models/`. Setelah model tersimpan, penghapusan latar dan transkripsi file lokal bisa dijalankan tanpa internet; mengambil konten dari YouTube tetap memerlukan internet. Gradio tidak menggunakan share link; analytics Gradio dan telemetry Hugging Face dinonaktifkan.
 
@@ -17,8 +17,8 @@ Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di `mode
 - Model Whisper large-v3 multilingual mendukung 99 bahasa, termasuk Arab, dan bahasa dapat dideteksi otomatis. Cari lalu pilih bahasa di dropdown bila sudah diketahui; decoding memakai beam search untuk membantu mengurangi kesalahan pengenalan, dengan waktu proses lebih lama.
 - Transkripsi panjang diproses berurutan agar konteks antarbagiannya tetap terjaga. Ini mengutamakan ketepatan dibanding mode potongan cepat.
 - TXT berisi teks, SRT/VTT berisi timestamp kalimat, dan JSON menyimpan timestamp awal/akhir setiap kata serta kelompok kalimat. Timestamp kata merupakan estimasi alignment model; audio bising, ucapan tumpang tindih, aksen, dan kata yang salah dikenali dapat memengaruhi hasil.
-- Tab **Unduh YouTube** adalah fitur terpisah. Pilih kualitas Terbaik, 1080p, atau 720p untuk menyimpan video di folder output.
-- YouTube membutuhkan Node.js 22+ untuk menjalankan challenge solver yt-dlp. `setup.ps1` memeriksa versi Node sebelum instalasi.
+- Tab **Downloader** adalah fitur terpisah dari transkrip. Pilih platform, tempel tautan satu video, lalu pilih kualitas Terbaik, 1080p, atau 720p. Hasil ditampilkan di aplikasi dan tetap sementara sampai disimpan melalui tombol unduh.
+- Downloader memakai yt-dlp. YouTube membutuhkan Node.js 22+ untuk menjalankan challenge solver. Tautan privat, konten yang dibatasi wilayah/umur, atau situs yang meminta login mungkin gagal; dukungan platform bergantung pada perubahan situs dan extractor yt-dlp.
 - Model Whisper large-v3 berukuran beberapa GB dan diunduh saat fitur transkrip pertama kali dipakai. Model ini lebih mengutamakan akurasi daripada kecepatan; waktu proses bergantung pada panjang video dan GPU.
 
 `requirements-lock.txt` mengunci versi dependensi. Bobot model di-cache selama aplikasi hidup; recurrent state dan sesi tracking selalu baru untuk setiap file. Pemakaian pertama RVM membutuhkan warm-up TorchScript, sehingga klip pendek pertama dapat terasa jauh lebih lambat.
@@ -56,10 +56,10 @@ src/removebg/
   infrastructure/models.py   # Adapter RVM/SAM, CUDA, download/cache dan memori
   infrastructure/media.py    # PyAV decode/encode, FFmpeg audio, preview
   infrastructure/youtube_transcription.py # Audio YouTube sementara untuk transkripsi
-  infrastructure/youtube_video.py # Pengunduh video YouTube terpisah
+  infrastructure/youtube_video.py # Pengunduh video YouTube, Instagram, TikTok, dan Twitter/X
   infrastructure/youtube_common.py # Validasi tautan YouTube
   application/transcription.py # Whisper multilingual, kata dan timestamp, ekspor
-  application/youtube_download.py # Alur unduh video dan penyimpanan hasil
+  application/youtube_download.py # Alur unduh video dan penyimpanan hasil sementara
   domain.py                  # Metadata video dan validasi titik
   config.py                  # Lokasi output/model
 tests/test_pipeline.py       # Kontrak ekspor, timestamp, cleanup, audio, mask

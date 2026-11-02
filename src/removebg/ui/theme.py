@@ -31,11 +31,6 @@ THEME_JS = """() => {
         const next = getTheme() === 'cream' ? 'teal-dark' : 'cream';
         apply(next);
     };
-    document.addEventListener('click', function(e) {
-        if (e.target && (e.target.id === 'theme-toggle-btn' || e.target.closest('#theme-toggle-btn'))) {
-            window.toggleTheme();
-        }
-    });
     apply(getTheme());
     setTimeout(() => apply(getTheme()), 200);
     setTimeout(() => apply(getTheme()), 600);
@@ -635,5 +630,82 @@ button.stop:hover {
   border-radius: 14px;
   background: var(--bg-card-subtle);
   margin-top: 10px;
+}
+
+/* Keep the local web UI comfortable on narrow screens without extra JS. */
+@media (max-width: 760px) {
+  .gradio-container {
+    padding: 12px !important;
+  }
+  .hero {
+    padding: 20px;
+    border-radius: 18px;
+  }
+  .hero-brand {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .logo {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    font-size: 22px;
+  }
+  .hero-titles h1 {
+    font-size: 27px;
+  }
+  .hero p {
+    font-size: 14px;
+  }
+  .theme-switch-container,
+  .theme-btn {
+    width: 100%;
+  }
+  .theme-btn {
+    justify-content: center;
+  }
+  .tab-container {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .tab-container button {
+    white-space: nowrap;
+    padding: 10px 14px !important;
+    font-size: 14px;
+  }
+  .gradio-container .row {
+    flex-wrap: wrap !important;
+  }
+  .gradio-container .row > .column {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 100% !important;
+  }
+  .card {
+    padding: 16px !important;
+    border-radius: 15px !important;
+  }
+  .step-sub {
+    margin-left: 0;
+    line-height: 1.5;
+  }
+  .choice .wrap {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)) !important;
+  }
+  .download-row {
+    align-items: stretch;
+  }
+  .btn-download-clean {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 """

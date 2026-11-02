@@ -5,9 +5,6 @@ import imageio_ffmpeg
 from yt_dlp import YoutubeDL
 
 from removebg.domain import Cancelled
-from removebg.infrastructure.youtube_common import youtube_url
-
-
 FORMATS = {
     "Terbaik": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
     "1080p": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]",
@@ -15,7 +12,27 @@ FORMATS = {
 }
 
 
-def download_video(url, quality, folder: Path, progress, cancel: threading.Event):
+PLATFORMS = {
+    "YouTube": ("youtube.com", "youtu.be"),
+    "Instagram": ("instagram.com",),
+    "TikTok": ("tiktok.com",),
+    "Twitter/X": ("twitter.com", "x.com"),
+}
+
+
+def platform_url(value, platform):
+    from urllib.parse import urlparse
+
+    hosts = PLATFORMS.get(platform)
+    parsed = urlparse(str(value or "").strip())
+    host = (parsed.hostname or "").lower().removeprefix("www.")
+    if not hosts or parsed.scheme not in {"http", "https"} or not any(host == domain or host.endswith("." + domain) for domain in hosts):
+        supported = ", ".join(PLATFORMS)
+        raise ValueError(f"Masukkan URL {platform} yang valid. Platform yang didukung: {supported}.")
+    return parsed.geturl()
+
+
+def download_video(url, platform, quality, folder: Path, progress, cancel: threading.Event):
     folder.mkdir(parents=True, exist_ok=True)
 
     def report_download(state):
@@ -24,7 +41,7 @@ def download_video(url, quality, folder: Path, progress, cancel: threading.Event
         if state.get("status") == "downloading":
             total = state.get("total_bytes") or state.get("total_bytes_estimate") or 0
             fraction = state.get("downloaded_bytes", 0) / total if total else 0
-            progress(min(0.95, fraction), "Mengunduh video YouTube…")
+            progress(min(0.95, fraction), f"Mengunduh video {platform}…")
 
     ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
     options = {
@@ -43,12 +60,12 @@ def download_video(url, quality, folder: Path, progress, cancel: threading.Event
     }
     try:
         with YoutubeDL(options) as downloader:
-            info = downloader.extract_info(youtube_url(url), download=True)
+            info = downloader.extract_info(platform_url(url, platform), download=True)
     except Cancelled:
         raise
     except Exception as error:
-        raise ValueError(f"Gagal mengunduh video YouTube: {error}") from error
-    files = [path for path in folder.glob("video.*") if path.is_file() and path.suffix.lower() in {".mp4", ".mkv", ".webm"}]
+        raise ValueError(f"Gagal mengunduh video {platform}: {error}") from error
+    files = [path for path in folder.glob("video.*") if path.is_file() and path.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov", ".m4v"}]
     if not files:
         raise ValueError("File video tidak ditemukan setelah proses unduh.")
-    return files[0], info.get("title") or "Video YouTube"
+    return files[0], info.get("title") or f"Video {platform}"

@@ -20,4 +20,11 @@ uv pip install --python .venv/Scripts/python.exe --no-deps -e .
 if ($LASTEXITCODE) { throw 'Instalasi aplikasi gagal.' }
 & .venv/Scripts/python.exe -c "import torch; assert torch.cuda.is_available(), 'CUDA tidak tersedia'; print(torch.cuda.get_device_name(0))"
 if ($LASTEXITCODE) { throw 'Pemeriksaan GPU gagal.' }
-Write-Host 'Siap. Jalankan .\run.ps1 atau klik dua kali run.bat.'
+Push-Location web
+try {
+    npm ci
+    if ($LASTEXITCODE) { throw 'Instalasi dependensi web gagal.' }
+    npm run build
+    if ($LASTEXITCODE) { throw 'Build web gagal.' }
+} finally { Pop-Location }
+Write-Host 'Siap. Klik dua kali run.bat untuk membuka web app.'

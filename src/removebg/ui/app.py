@@ -15,7 +15,7 @@ from transformers.models.whisper.tokenization_whisper import LANGUAGES
 
 from removebg.application.service import run_photo, run_video
 from removebg.application.transcription import run_youtube_transcription
-from removebg.application.youtube_download import run_youtube_download
+from removebg.application.youtube_download import run_video_download
 from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
@@ -172,21 +172,21 @@ def process_transcription(url, language, name, request: gr.Request, progress=gr.
         running.pop(request.session_hash, None)
 
 
-def process_youtube_download(url, quality, name, request: gr.Request, progress=gr.Progress()):  # noqa: B008 - Gradio injects progress via this default.
+def process_video_download(url, platform, quality, name, request: gr.Request, progress=gr.Progress()):  # noqa: B008 - Gradio injects progress via this default.
     if not str(url or "").strip():
-        raise gr.Error("Tempel tautan video YouTube terlebih dahulu.")
+        raise gr.Error("Tempel tautan video terlebih dahulu.")
     cancel = threading.Event()
     running[request.session_hash] = cancel
     try:
-        result = run_youtube_download(
-            url, quality, name,
+        result = run_video_download(
+            url, platform, quality, name,
             lambda fraction, description: progress(fraction, desc=description), cancel,
         )
         return result["path"], f"✅ **Selesai** · {result['title']} · {result['size'] / (1024 * 1024):.1f} MB"
     except Cancelled:
         return None, "Unduhan dibatalkan."
     except Exception as error:
-        logger.exception("YouTube video download failed")
+        logger.exception("Video download failed")
         raise gr.Error(str(error)) from error
     finally:
         running.pop(request.session_hash, None)
@@ -218,7 +218,7 @@ def hero(gpu):
       <div class="logo">✂</div>
       <div class="hero-titles">
         <h1>RemoveBG <span>Local</span></h1>
-        <p>Hapus latar video dan foto, buat transkrip multilingual, dan simpan video YouTube langsung dari PC-mu.</p>
+        <p>Hapus latar video dan foto, buat transkrip multilingual, dan unduh video dari YouTube, Instagram, TikTok, atau Twitter/X.</p>
       </div>
     </div>
     <div class="theme-switch-container">
@@ -237,7 +237,7 @@ def hero(gpu):
 
 def build_app():
     gpu = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CUDA belum tersedia — jalankan setup.ps1"
-    with gr.Blocks(title="RemoveBG Local", theme=make_theme(), css=CSS, js=FORCE_DARK) as app:
+    with gr.Blocks(title="RemoveBG Local") as app:
         gr.HTML(hero(gpu))
         with gr.Tab("🎬 Video"):
             original = gr.State()
@@ -346,12 +346,13 @@ def build_app():
                 concurrency_limit=1,
             )
             transcript_cancel.click(stop, outputs=transcript_status, queue=False)
-        with gr.Tab("⬇️ Unduh YouTube"):
+        with gr.Tab("⬇️ Downloader"):
             with gr.Row(equal_height=False):
                 with gr.Column(scale=5):
                     with gr.Group(elem_classes="card"):
-                        step(1, "Tautan YouTube", "Fitur ini mengunduh file video dan tidak membuat transkrip.")
-                        download_url = gr.Textbox(label="URL video", placeholder="https://www.youtube.com/watch?v=…", max_lines=1)
+                        step(1, "Pilih platform & tautan", "Unduh satu video dari YouTube, Instagram, TikTok, atau Twitter/X.")
+                        download_platform = gr.Dropdown(["YouTube", "Instagram", "TikTok", "Twitter/X"], value="YouTube", label="Platform")
+                        download_url = gr.Textbox(label="URL video", placeholder="Tempel tautan video", max_lines=1)
                         download_quality = gr.Radio(["Terbaik", "1080p", "720p"], value="Terbaik", label="Kualitas video", elem_classes="choice")
                         download_name = gr.Textbox(label="Nama file (opsional)", placeholder="otomatis dari judul video", max_lines=1)
                         download_start = gr.Button("🚀 Unduh Video", variant="primary", size="lg")
@@ -359,13 +360,13 @@ def build_app():
                         download_status = gr.Markdown("Siap mengunduh video.", elem_classes="status")
                 with gr.Column(scale=5):
                     with gr.Group(elem_classes="card"):
-                        gr.HTML('<div class="step-title">File Video</div><p class="step-sub" style="margin-left:0">File tersimpan di folder output project dan dapat diunduh dari sini.</p>')
+                        gr.HTML('<div class="step-title">File Video</div><p class="step-sub" style="margin-left:0">Hasil tampil di sini dan disimpan sementara. Klik unduh untuk menyimpan salinan.</p>')
                         download_result = gr.File(label="Hasil Video", interactive=False)
             download_start.click(
-                process_youtube_download,
-                [download_url, download_quality, download_name],
+                process_video_download,
+                [download_url, download_platform, download_quality, download_name],
                 [download_result, download_status],
-                concurrency_id="youtube-download",
+                concurrency_id="video-download",
                 concurrency_limit=1,
             )
             download_cancel.click(stop, outputs=download_status, queue=False)
@@ -381,6 +382,7 @@ def main():
     build_app().queue(max_size=4, default_concurrency_limit=1).launch(
         server_name="127.0.0.1", inbrowser=True, share=False,
         allowed_paths=[str(OUTPUTS)], max_file_size="20gb",
+        theme=make_theme(), css=CSS, js=FORCE_DARK,
     )
 
 
