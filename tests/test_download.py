@@ -7,6 +7,43 @@ import imageio_ffmpeg
 import pytest
 
 from removebg.application import youtube_download
+from removebg.infrastructure import youtube_video
+
+
+def test_youtube_bot_check_retries_with_android_client(tmp_path, monkeypatch):
+    calls = []
+
+    class FakeYoutubeDL:
+        def __init__(self, options):
+            self.options = options
+            calls.append(options)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def extract_info(self, url, download):
+            assert url == "https://youtu.be/video-id"
+            assert download is True
+            if len(calls) == 1:
+                raise Exception("Sign in to confirm you’re not a bot")
+            (tmp_path / "video.mp4").write_bytes(b"video")
+            return {"title": "Test video"}
+
+    monkeypatch.setattr(youtube_video, "YoutubeDL", FakeYoutubeDL)
+    progress = []
+    result = youtube_video.download_video(
+        "https://youtu.be/video-id", "YouTube", "Terbaik", tmp_path,
+        lambda value, message: progress.append((value, message)), threading.Event(),
+    )
+
+    assert len(calls) == 2
+    assert "extractor_args" not in calls[0]
+    assert calls[1]["extractor_args"] == {"youtube": {"player_client": ["android"]}}
+    assert result == (tmp_path / "video.mp4", "Test video")
+    assert "mode tanpa login" in progress[-1][1]
 
 
 def test_tiktok_download_uses_public_provider_and_streams_video(tmp_path, monkeypatch):

@@ -64,7 +64,19 @@ def download_video(url, platform, quality, folder: Path, progress, cancel: threa
     except Cancelled:
         raise
     except Exception as error:
-        raise ValueError(f"Gagal mengunduh video {platform}: {error}") from error
+        message = str(error).lower()
+        if platform != "YouTube" or "sign in" not in message or "bot" not in message:
+            raise ValueError(f"Gagal mengunduh video {platform}: {error}") from error
+
+        progress(0, "YouTube menolak jalur standar; mencoba mode tanpa login (resolusi bisa terbatas)…")
+        retry_options = {**options, "extractor_args": {"youtube": {"player_client": ["android"]}}}
+        try:
+            with YoutubeDL(retry_options) as downloader:
+                info = downloader.extract_info(platform_url(url, platform), download=True)
+        except Cancelled:
+            raise
+        except Exception as retry_error:
+            raise ValueError(f"Gagal mengunduh video {platform}: {retry_error}") from retry_error
     files = [path for path in folder.glob("video.*") if path.is_file() and path.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov", ".m4v"}]
     if not files:
         raise ValueError("File video tidak ditemukan setelah proses unduh.")
