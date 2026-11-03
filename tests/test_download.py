@@ -68,6 +68,14 @@ def test_browser_capture_rejects_hosts_resolving_to_private_addresses(monkeypatc
     assert not browser_capture.is_public_http_url("https://example.com/video")
 
 
+def test_browser_capture_reports_dns_failures_as_connection_issues(monkeypatch):
+    def fail_dns(*_args):
+        raise browser_capture.socket.gaierror("name resolution failed")
+
+    monkeypatch.setattr(browser_capture.socket, "getaddrinfo", fail_dns)
+    assert "DNS" in browser_capture.public_http_url_error("https://example.com/video")
+
+
 def test_youtube_bot_check_retries_with_android_client(tmp_path, monkeypatch):
     calls = []
 

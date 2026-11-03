@@ -8,13 +8,13 @@ from urllib.parse import urlparse
 from playwright.sync_api import Error as PlaywrightError, sync_playwright
 
 
-def is_public_http_url(url):
+def public_http_url_error(url):
     parsed = urlparse(str(url or ""))
     if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
-        return False
+        return "Masukkan URL website yang valid dan diawali http:// atau https://."
     host = parsed.hostname.rstrip(".").lower()
     if host == "localhost" or host.endswith((".localhost", ".local")):
-        return False
+        return "Link umum hanya menerima alamat website publik."
     try:
         addresses = {ipaddress.ip_address(host)}
     except ValueError:
@@ -23,9 +23,19 @@ def is_public_http_url(url):
                 ipaddress.ip_address(result[4][0])
                 for result in socket.getaddrinfo(host, parsed.port or (443 if parsed.scheme == "https" else 80))
             }
-        except (OSError, ValueError):
-            return False
-    return bool(addresses) and all(address.is_global for address in addresses)
+        except OSError:
+            return "Domain tidak bisa ditemukan melalui DNS. Periksa koneksi atau VPN, lalu coba lagi."
+        except ValueError:
+            return "Port URL tidak valid."
+        if not addresses:
+            return "Domain tidak mengarah ke alamat IP yang bisa dijangkau."
+    if not all(address.is_global for address in addresses):
+        return "Link umum hanya menerima alamat website publik."
+    return None
+
+
+def is_public_http_url(url):
+    return public_http_url_error(url) is None
 
 
 def find_chrome():
@@ -44,8 +54,9 @@ def find_chrome():
 
 
 def run_browser_capture(url, session, cancel):
-    if not is_public_http_url(url):
-        raise ValueError("URL harus menuju website publik dengan alamat http:// atau https://.")
+    url_error = public_http_url_error(url)
+    if url_error:
+        raise ValueError(url_error)
     chrome = find_chrome()
     if not chrome:
         raise ValueError("Google Chrome atau Microsoft Edge tidak ditemukan.")
@@ -96,12 +107,21 @@ def run_browser_capture(url, session, cancel):
             context.on("page", lambda page: page.on("response", inspect_response))
             page = context.new_page()
             try:
-                page.goto(url, wait_until="domcontentloaded", timeout=45_000)
+                response = page.goto(url, wait_until="commit", timeout=20_000)
             except PlaywrightError as error:
                 if cancel.is_set():
                     return
+                detail = str(error)
+                if any(code in detail for code in ("ERR_CONNECTION_TIMED_OUT", "ERR_TUNNEL_CONNECTION_FAILED", "ERR_NAME_NOT_RESOLVED")):
+                    raise ValueError(
+                        "Situs tidak merespons melalui koneksi saat ini. Pastikan VPN tersambung di Windows dan uji URL sumber di Chrome biasa."
+                    ) from error
                 if not page.url or page.url == "about:blank":
                     raise ValueError(f"Halaman tidak dapat dibuka: {error}") from error
+            if response and response.status >= 400:
+                raise ValueError(
+                    f"Situs membalas HTTP {response.status}; halaman sumber menolak permintaan atau tautannya sudah tidak berlaku."
+                )
             session.update(state="waiting", message="Halaman terbuka. Tekan Play di jendela browser untuk mencari video.")
             for _ in range(600):
                 if cancel.wait(0.5):
