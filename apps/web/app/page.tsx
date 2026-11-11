@@ -2,12 +2,13 @@
 
 import {
   ArrowDownToLine, AudioLines, Check, ChevronRight, Clapperboard, ExternalLink, FileText,
-  ImagePlus, LoaderCircle, LockKeyhole, Monitor, MousePointer2, Scissors,
+  LoaderCircle, LockKeyhole, Monitor, MousePointer2, Scissors,
   ShieldCheck, Sparkles, Upload, WandSparkles, X,
 } from "lucide-react";
 import { ChangeEvent, FormEvent, MouseEvent, useEffect, useState } from "react";
+import { ToolNavigation, type MediaTool } from "@/components/tool-navigation";
 
-type Feature = "video" | "photo" | "transcription" | "download";
+type Feature = MediaTool;
 type Point = { x: number; y: number; keep: boolean };
 type Uploaded = {
   id: string;
@@ -30,14 +31,12 @@ type Job = {
   } | null;
 };
 type MediaCapture = { id: string; state: string; message: string; candidates: { url: string; type: string; status: number }[] };
-type FeatureInfo = { id: Feature; label: string; short: string; icon: typeof Clapperboard };
-
 const API = process.env.NODE_ENV === "development" ? "http://127.0.0.1:7860" : "";
-const FEATURES: FeatureInfo[] = [
-  { id: "video", label: "Hapus latar video", short: "Video", icon: Clapperboard },
-  { id: "photo", label: "Hapus latar foto", short: "Foto", icon: ImagePlus },
-  { id: "transcription", label: "Transkrip YouTube", short: "Transkrip", icon: AudioLines },
-  { id: "download", label: "Downloader", short: "Downloader", icon: ArrowDownToLine },
+const FEATURES: { id: Feature; label: string }[] = [
+  { id: "video", label: "Hapus latar video" },
+  { id: "photo", label: "Hapus latar foto" },
+  { id: "transcription", label: "Transkripsi YouTube" },
+  { id: "download", label: "Unduh media" },
 ];
 const EXPORTS = [
   { value: "transparent", label: "Transparan · MOV" },
@@ -82,6 +81,8 @@ export default function Home() {
   const [mediaCapture, setMediaCapture] = useState<MediaCapture | null>(null);
 
   useEffect(() => {
+    const requestedTool = new URLSearchParams(window.location.search).get("tool") as Feature | null;
+    if (FEATURES.some((item) => item.id === requestedTool)) setFeature(requestedTool!);
     fetch(API + "/api/health").then(responseJson).then((data) => { setGpu(data.gpu); setBackendReady(true); }).catch(() => setBackendReady(false));
     fetch(API + "/api/languages").then(responseJson).then((data) => setLanguages(data.languages)).catch(() => {});
   }, []);
@@ -210,14 +211,13 @@ export default function Home() {
         <div className="local-status"><span className={"status-dot " + (backendReady ? "" : "offline")} />{gpu || (backendReady ? "Backend lokal" : "Menghubungkan…")}</div>
       </header>
 
-      <div className="mobile-nav" aria-label="Pilih alat">
-        {FEATURES.map((item) => <NavButton key={item.id} item={item} active={feature === item.id} onClick={() => chooseFeature(item.id)} compact />)}
+      <div className="mobile-nav">
+        <ToolNavigation activeTool={feature} onSelectTool={chooseFeature} />
       </div>
 
       <div className="workspace">
         <aside className="sidebar">
-          <div className="nav-label">Alat kerja</div>
-          {FEATURES.map((item) => <NavButton key={item.id} item={item} active={feature === item.id} onClick={() => chooseFeature(item.id)} />)}
+          <ToolNavigation activeTool={feature} onSelectTool={chooseFeature} />
           <div className="sidebar-tip"><strong><LockKeyhole size={13} style={{ verticalAlign: "-2px", marginRight: 5 }} />Dijalankan lokal</strong>Hasil tersimpan sementara. Unduh file hanya saat kamu memilihnya.</div>
         </aside>
 
@@ -309,11 +309,6 @@ export default function Home() {
       <footer className="footer">MYTOOLS · WORKSPACE LOKAL PRIBADI</footer>
     </main>
   );
-}
-
-function NavButton({ item, active, onClick, compact = false }: { item: FeatureInfo; active: boolean; onClick: () => void; compact?: boolean }) {
-  const Icon = item.icon;
-  return <button type="button" className={"nav-item " + (active ? "active" : "")} onClick={onClick}><span className="nav-icon"><Icon size={15} /></span>{compact ? item.short : item.label}</button>;
 }
 
 function FileDownload({ file }: { file?: FileResult }) {

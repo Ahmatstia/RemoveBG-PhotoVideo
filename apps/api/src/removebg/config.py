@@ -2,7 +2,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 OUTPUTS = Path(tempfile.gettempdir()) / "RemoveBG-Local" / "outputs"
 MODELS = ROOT / "models"
 SAM_ID = "facebook/sam2.1-hiera-small"

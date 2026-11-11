@@ -51,10 +51,22 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .workspace { display: grid; grid-template-columns: 228px minmax(0, 1fr); gap: 22px; align-items: start; }
 .sidebar { position: sticky; top: 20px; padding: 12px; border: 1px solid var(--border); border-radius: 18px; background: rgba(255,255,255,.78); box-shadow: var(--shadow); }
 .nav-label { padding: 8px 10px 11px; color: #8a9691; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.nav-item { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; border: 0; border-radius: 11px; background: transparent; color: #53615c; text-align: left; font-weight: 600; transition: background .16s ease, color .16s ease; }
-.nav-item:hover { background: #f3f7f5; color: var(--text); }
-.nav-item.active { background: var(--accent-soft); color: var(--accent-dark); }
-.nav-icon { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 8px; background: rgba(255,255,255,.75); }
+.tool-navigation { display: grid; gap: 4px; }
+.tool-navigation .nav-label { padding: 8px 10px 7px; }
+.tool-nav-group { border-radius: 11px; }
+.tool-nav-group > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px; border-radius: 10px; color: #45534e; font-size: 12px; font-weight: 750; list-style: none; cursor: pointer; }
+.tool-nav-group > summary::-webkit-details-marker { display: none; }
+.tool-nav-group > summary > span { display: flex; align-items: center; gap: 9px; }
+.tool-nav-group > summary:hover { background: #f3f7f5; }
+.tool-nav-chevron { transition: transform .16s ease; }
+.tool-nav-group[open] > summary .tool-nav-chevron { transform: rotate(180deg); }
+.tool-nav-items { display: grid; gap: 2px; padding: 2px 0 5px 9px; }
+.tool-nav-item { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 37px; padding: 7px 9px; border: 0; border-radius: 9px; background: transparent; color: #53615c; text-align: left; text-decoration: none; font-size: 11px; font-weight: 600; cursor: pointer; }
+.tool-nav-item:hover { background: #f3f7f5; color: var(--text); }
+.tool-nav-item.active { background: var(--accent-soft); color: var(--accent-dark); }
+.tool-nav-icon { display: grid; flex: 0 0 auto; place-items: center; width: 23px; height: 23px; border-radius: 7px; background: rgba(255,255,255,.8); }
+.tool-nav-item.unavailable { color: #87938e; cursor: not-allowed; }
+.tool-nav-item.unavailable small { margin-left: auto; color: #8a9691; font-size: 9px; font-weight: 500; }
 .sidebar-tip { margin: 17px 4px 2px; padding: 13px 12px; border-radius: 12px; background: #f5f8f6; color: var(--muted); font-size: 11px; line-height: 1.55; }
 .sidebar-tip strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 12px; }
 
@@ -156,10 +168,13 @@ textarea.control { min-height: 100px; resize: vertical; }
   .hero-note { margin-top: 12px; }
   .workspace { display: block; }
   .sidebar { display: none; }
-  .mobile-nav { display: flex; gap: 5px; overflow-x: auto; margin: 0 -1px 12px; padding: 5px; border: 1px solid var(--border); border-radius: 12px; background: #ffffffbd; scrollbar-width: none; }
-  .mobile-nav::-webkit-scrollbar { display: none; }
-  .mobile-nav .nav-item { flex: 0 0 auto; width: auto; padding: 9px 10px; font-size: 11px; white-space: nowrap; }
-  .mobile-nav .nav-icon { width: 21px; height: 21px; }
+  .mobile-nav { display: block; margin: 0 -1px 12px; padding: 5px; border: 1px solid var(--border); border-radius: 12px; background: #ffffffbd; }
+  .mobile-nav .tool-navigation { grid-template-columns: 1fr 1fr; gap: 3px 8px; }
+  .mobile-nav .tool-navigation > .nav-label { grid-column: 1 / -1; }
+  .mobile-nav .tool-nav-group > summary { padding: 8px; font-size: 10px; }
+  .mobile-nav .tool-nav-items { padding-left: 2px; }
+  .mobile-nav .tool-nav-item { min-height: 34px; padding: 6px; font-size: 10px; }
+  .mobile-nav .tool-nav-icon { width: 20px; height: 20px; }
   .panel { border-radius: 14px; }
   .panel-head { padding: 18px 16px 14px; }
   .panel-title { font-size: 16px; }

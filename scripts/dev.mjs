@@ -5,10 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const python = resolve(root, ".venv", "Scripts", "python.exe");
-const next = resolve(root, "web", "node_modules", "next", "dist", "bin", "next");
+const webRoot = resolve(root, "apps", "web");
+const next = resolve(webRoot, "node_modules", "next", "dist", "bin", "next");
 
 if (!existsSync(python)) throw new Error("Jalankan setup.ps1 terlebih dahulu untuk memasang backend Python.");
-if (!existsSync(next)) throw new Error("Frontend belum dipasang. Jalankan npm ci --prefix web terlebih dahulu.");
+if (!existsSync(next)) throw new Error("Frontend belum dipasang. Jalankan npm ci --prefix apps/web terlebih dahulu.");
 
 let backend;
 let frontend;
@@ -65,7 +66,7 @@ if (!(await waitForApi())) {
   stop(1);
 } else {
   frontend = spawn(process.execPath, [next, "dev", "--hostname", "127.0.0.1"], {
-    cwd: resolve(root, "web"),
+    cwd: webRoot,
     stdio: "inherit",
     windowsHide: true,
   });

@@ -22,9 +22,10 @@ from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
 from removebg.domain import Cancelled
 from removebg.infrastructure.media import inspect_video, read_photo
 from removebg.infrastructure.browser_capture import run_browser_capture
+from removebg.modules.decision_support.presentation.router import router as decision_support_router
 
 logger = logging.getLogger(__name__)
-WEB_OUT = ROOT / "web" / "out"
+WEB_OUT = ROOT / "apps" / "web" / "out"
 UPLOAD_DIR = OUTPUTS / "uploads"
 MAX_UPLOAD_BYTES = 20 * 1024**3
 UPLOAD_TYPES = {
@@ -37,6 +38,7 @@ media_captures = {}
 state_lock = threading.Lock()
 work_lock = threading.Lock()
 app = FastAPI(title="RemoveBG Local API", docs_url=None, redoc_url=None)
+app.include_router(decision_support_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://127.0.0.1:3000", "http://localhost:3000"],

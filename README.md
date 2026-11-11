@@ -25,7 +25,7 @@ Model diunduh dari repositori resmi pada pemakaian pertama dan disimpan di folde
 - Downloader memakai yt-dlp untuk YouTube, video Instagram, Twitter/X, dan tautan umum. Di **Link umum**, tombol **Buka halaman & deteksi video** membuka Chrome/Edge dengan profil sementara tanpa cookie login; putar video lalu pilih sumber MP4/HLS yang terdeteksi untuk mengirimnya ke alur unduh biasa. Deteksi ini tidak memproses DRM atau meminta akses khusus, dan tidak semua website dijamin bekerja. Link umum juga mendukung situs yang punya extractor yt-dlp serta URL file video langsung. Foto slideshow TikTok diambil dengan gallery-dl. Foto publik Instagram diambil tanpa sesi login lewat endpoint web publik; jika data carousel tidak tersedia, aplikasi menampilkan pratinjau foto yang Instagram sediakan dan memberi tahu bahwa kualitas/jumlah foto terbatas. Posting privat, rate limit, dan perubahan endpoint dapat membatasi hasil. Video TikTok memakai API TikWM tanpa cookie browser; tautan TikTok dikirim ke server TikWM untuk memperoleh URL media. Video HD HEVC dikonversi menjadi H.264 MP4 dengan resolusi sumber yang sama agar kompatibel dengan pemutar Windows umum. API eksternal dan extractor dapat berubah sewaktu-waktu.
 - Model Whisper large-v3 berukuran beberapa GB dan diunduh saat fitur transkrip pertama kali dipakai. Model ini lebih mengutamakan akurasi daripada kecepatan; waktu proses bergantung pada panjang video dan GPU.
 
-`requirements-lock.txt` mengunci versi dependensi. Bobot model di-cache selama aplikasi hidup; recurrent state dan sesi tracking selalu baru untuk setiap file. Pemakaian pertama RVM membutuhkan warm-up TorchScript, sehingga klip pendek pertama dapat terasa jauh lebih lambat.
+`apps/api/requirements-lock.txt` mengunci versi dependensi. Bobot model di-cache selama aplikasi hidup; recurrent state dan sesi tracking selalu baru untuk setiap file. Pemakaian pertama RVM membutuhkan warm-up TorchScript, sehingga klip pendek pertama dapat terasa jauh lebih lambat.
 
 ### Pilihan model
 
@@ -50,36 +50,46 @@ Pipeline membaca frame berurutan, mempertahankan timestamp termasuk VFR, menanga
 
 Tombol Batalkan berhenti setelah operasi frame/model aktif selesai. Unduhan model awal belum dapat diputus lewat tombol ini. Jika disk hampir penuh atau proses gagal, file parsial pekerjaan tersebut dibersihkan.
 
-## Struktur layer
+## Struktur project
 
 ```text
-src/removebg/
-  api.py                     # FastAPI lokal, unggah, pekerjaan, progress, file hasil
-  application/service.py     # Urutan proses video/foto, lifecycle job dan hasil
-  infrastructure/models.py   # Adapter RVM/SAM, CUDA, download/cache dan memori
-  infrastructure/media.py    # PyAV decode/encode, FFmpeg audio, preview
-  infrastructure/youtube_transcription.py # Audio YouTube sementara untuk transkripsi
-  infrastructure/youtube_video.py # Pengunduh video YouTube, Instagram, dan Twitter/X
-  infrastructure/youtube_common.py # Validasi tautan YouTube
-  application/transcription.py # Whisper multilingual, kata dan timestamp, ekspor
-  application/youtube_download.py # Alur unduh video platform, foto TikTok, dan foto Instagram publik
-  domain.py                  # Metadata video dan validasi titik
-  config.py                  # Lokasi output/model
-tests/test_pipeline.py       # Kontrak ekspor, timestamp, cleanup, audio, mask
-web/
-  app/page.tsx               # Next.js, alat dan pratinjau
-  app/globals.css            # UI responsif dengan font sistem
-  next.config.ts             # Build statis yang disajikan FastAPI
-setup.ps1 / run.ps1 / run.bat
+apps/
+  api/src/removebg/             # FastAPI dan fitur media yang sudah ada
+    api.py                      # Komposisi app, route media, dan static UI
+    modules/decision_support/   # API, use case, domain, DB, dan adapter ML fitur baru
+  web/                          # Next.js app router dan feature UI
+    app/                         # Route/layout tingkat aplikasi
+    features/decision-support/  # UI, API client, dan tipe fitur
+ml/
+  src/decision_support_ml/training/ # Pelatihan model analisis ulasan
+  data/                          # Dataset raw/interim/processed (lokal)
+  artifacts/                     # Bobot model lokal
+  reports/                       # Laporan evaluasi lokal
+apps/api/tests/                  # Tes backend yang sudah ada
+scripts/                         # Runner pengembangan dan pemeriksaan lokal
 ```
 
-UI web tidak melakukan inference langsung. Untuk model tambahan, buat adapter dengan process(rgb) -> (foreground_rgb, alpha_uint8) lalu sambungkan melalui create_model. Model harus menyimpan state temporal di instance sendiri. Satu pekerjaan diproses pada satu waktu. Tidak ada database atau layanan pemrosesan cloud.
+API media tetap berada di backend bersama. Fitur analisis keputusan dipisahkan dalam `modules/decision_support`; halaman dan klien API-nya berada dalam `apps/web/features/decision-support`. Penyimpanan SQLite fitur ada di `data/decision-support.sqlite3`.
+
+## Decision Support
+
+Fitur tersedia melalui tombol **Bantu memilih**, route `/decision-support`, dan API `/api/v1/decision-support`. Pilot awal menganalisis TWS; nama route dan modul menggambarkan kemampuan umum. CSV menyimpan observasi barang, harga, spesifikasi, dan ulasan secara lokal. Impor menampilkan preview dan memvalidasi baris sebelum penyimpanan.
+
+Rekomendasi memakai SAW dengan bobot pilihan pengguna. Harga menjadi kriteria cost, sedangkan rating, spesifikasi, dan sentimen aspek menjadi benefit. Hasil memperlihatkan kontribusi kriteria dan cakupan bukti. Aspek AI hanya tersedia setelah model dilatih dengan dataset ulasan berlabel milik pengguna; saat ini belum ada dataset sehingga tidak ada prediksi AI.
+
+Siapkan CSV train/eval terpisah dengan kolom `review_text,aspect,sentiment`; labelnya `not_mentioned`, `negative`, `neutral`, atau `positive`. Pisahkan produk eval dari train dan pastikan keempat kelas terwakili.
+
+```powershell
+.venv/Scripts/python.exe ml/src/decision_support_ml/training/train_absa.py --train path/to/tws-train.csv --eval path/to/tws-eval.csv
+```
+
+Bobot dan evaluasi tersimpan di `ml/artifacts/decision-support-absa`. Gunakan Macro-F1/per kelas dan audit data sebelum mengaktifkan analisis. Training pertama mengunduh IndoBERT, jadi memerlukan internet. Jangan memakai pseudo-label sebagai ground truth evaluasi.
 
 ## Verifikasi
 
 ```powershell
-.venv/Scripts/python.exe -m pytest -q
-.venv/Scripts/python.exe -m compileall -q src
+.venv/Scripts/python.exe -m pytest -q -c apps/api/pyproject.toml apps/api/tests
+.venv/Scripts/python.exe -m compileall -q apps/api/src
 ```
 
 Tes pipeline menggunakan matte sintetis untuk memverifikasi codec alpha, mask lossless, timestamp VFR, audio, batas preview, rotasi, validasi pilihan, dan cleanup. Ini terpisah dari penilaian kualitas AI pada footage asli.

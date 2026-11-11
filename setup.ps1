@@ -14,13 +14,13 @@ uv venv --python 3.11 .venv --allow-existing
 if ($LASTEXITCODE) { throw 'Pembuatan virtual environment gagal.' }
 uv pip install --python .venv/Scripts/python.exe 'torch==2.11.0+cu128' 'torchvision==0.26.0+cu128' --index-url https://download.pytorch.org/whl/cu128
 if ($LASTEXITCODE) { throw 'Instalasi PyTorch CUDA gagal.' }
-uv pip install --python .venv/Scripts/python.exe -r requirements-lock.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
+uv pip install --python .venv/Scripts/python.exe -r apps/api/requirements-lock.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
 if ($LASTEXITCODE) { throw 'Instalasi dependensi terkunci gagal.' }
-uv pip install --python .venv/Scripts/python.exe --no-deps -e .
+uv pip install --python .venv/Scripts/python.exe --no-deps -e apps/api
 if ($LASTEXITCODE) { throw 'Instalasi aplikasi gagal.' }
 & .venv/Scripts/python.exe -c "import torch; assert torch.cuda.is_available(), 'CUDA tidak tersedia'; print(torch.cuda.get_device_name(0))"
 if ($LASTEXITCODE) { throw 'Pemeriksaan GPU gagal.' }
-Push-Location web
+Push-Location apps/web
 try {
     npm ci
     if ($LASTEXITCODE) { throw 'Instalasi dependensi web gagal.' }
