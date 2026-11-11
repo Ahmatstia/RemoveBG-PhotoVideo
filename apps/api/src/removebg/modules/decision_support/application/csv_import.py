@@ -36,7 +36,7 @@ def parse_csv(content):
         raise ValueError("CSV harus memakai encoding UTF-8.") from error
     reader = csv.DictReader(io.StringIO(text))
     headers = {str(item or "").strip().lower() for item in (reader.fieldnames or [])}
-    missing = {"brand", "model"} - headers
+    missing = {"category", "brand", "model"} - headers
     if missing:
         raise ValueError("Kolom wajib tidak ditemukan: " + ", ".join(sorted(missing)))
     rows = []
@@ -63,12 +63,14 @@ def parse_csv(content):
         review_text = row.get("review_text", "")
         if len(review_text) > 10_000:
             problems.append("review_text maksimal 10.000 karakter")
-        raw_category = row.get("category", "tws").lower()
-        category = re.sub(r"[^a-z0-9_-]", "", raw_category) or "tws"
+        raw_category = row.get("category", "").lower()
+        category = re.sub(r"[^a-z0-9_-]", "", raw_category)
+        if not category:
+            problems.append("category wajib diisi, misalnya tws, laptop, atau kamera")
         if raw_category and not re.fullmatch(r"[a-z0-9_-]+", raw_category):
             problems.append("category hanya boleh memakai huruf kecil, angka, _ atau -")
-        if category != "tws":
-            problems.append("kategori yang tersedia saat ini hanya pilot TWS")
+        if len(category) > 50:
+            problems.append("category maksimal 50 karakter")
         raw_currency = row.get("currency", "IDR")
         if raw_currency and not re.fullmatch(r"[A-Za-z]{3}", raw_currency):
             problems.append("currency harus berupa kode tiga huruf seperti IDR")

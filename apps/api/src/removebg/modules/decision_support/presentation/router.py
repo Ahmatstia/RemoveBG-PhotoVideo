@@ -4,10 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
-from pydantic import BaseModel, Field
-
 from removebg.modules.decision_support.application.csv_import import MAX_CSV_BYTES, inspect_rows, parse_csv
-from removebg.modules.decision_support.application.recommendations import recommend
 from removebg.modules.decision_support.application.review_analysis import analyze_reviews
 from removebg.modules.decision_support.infrastructure.repository import (
     existing_fingerprints,
@@ -28,7 +25,7 @@ def categories():
 
 
 @router.get("/products")
-def products(category: str = "tws", search: str = Query(default="", max_length=160)):
+def products(category: str = Query(min_length=1, max_length=50), search: str = Query(default="", max_length=160)):
     return {"products": list_products(category, search)}
 
 
@@ -77,20 +74,6 @@ async def commit_import(file: UploadFile = File(...)):
         logger.exception("Decision support CSV import failed")
         raise HTTPException(500, "Import gagal; tidak ada perubahan yang disimpan.") from error
     return {**result, "duplicates_skipped": report["duplicates"], "rejected": report["rejected"]}
-
-
-class RecommendationInput(BaseModel):
-    category: str = "tws"
-    budget_max: float | None = Field(default=None, gt=0)
-    weights: dict[str, float]
-
-
-@router.post("/recommendations")
-def recommendations(payload: RecommendationInput):
-    try:
-        return recommend(payload.category, payload.budget_max, payload.weights)
-    except ValueError as error:
-        raise HTTPException(400, str(error)) from error
 
 
 @router.get("/model")

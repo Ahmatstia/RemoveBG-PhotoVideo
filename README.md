@@ -71,11 +71,11 @@ scripts/                         # Runner pengembangan dan pemeriksaan lokal
 
 API media tetap berada di backend bersama. Fitur analisis keputusan dipisahkan dalam `modules/decision_support`; halaman dan klien API-nya berada dalam `apps/web/features/decision-support`. Penyimpanan SQLite fitur ada di `data/decision-support.sqlite3`.
 
-## Decision Support
+## Analisis & perbandingan
 
-Fitur tersedia melalui tombol **Bantu memilih**, route `/decision-support`, dan API `/api/v1/decision-support`. Pilot awal menganalisis TWS; nama route dan modul menggambarkan kemampuan umum. CSV menyimpan observasi barang, harga, spesifikasi, dan ulasan secara lokal. Impor menampilkan preview dan memvalidasi baris sebelum penyimpanan.
+Fitur tersedia melalui menu **Riset & Data → Analisis & perbandingan**, route `/decision-support`, dan API `/api/v1/decision-support`. Fitur mendukung kategori yang ditulis pada kolom wajib `category`, sehingga data TWS, laptop, kamera, dan kategori lain tersimpan dan ditampilkan terpisah. CSV menampung harga, rating, spesifikasi dinamis (`spec_*`), dan ulasan. Impor menampilkan preview serta memvalidasi data sebelum disimpan.
 
-Rekomendasi memakai SAW dengan bobot pilihan pengguna. Harga menjadi kriteria cost, sedangkan rating, spesifikasi, dan sentimen aspek menjadi benefit. Hasil memperlihatkan kontribusi kriteria dan cakupan bukti. Aspek AI hanya tersedia setelah model dilatih dengan dataset ulasan berlabel milik pengguna; saat ini belum ada dataset sehingga tidak ada prediksi AI.
+Tahap awal menampilkan ringkasan katalog dan perbandingan data, tanpa preferensi/ranking personal. Analisis aspek AI yang tersedia saat ini khusus TWS dan hanya aktif setelah model dilatih dengan dataset berlabel. Kategori lain memerlukan dataset dan model yang sesuai sebelum analisis AI kategori tersebut dapat digunakan. Data bisa dimasukkan lewat CSV; scraper belum tersedia dan sumber scraping perlu ditentukan lebih dulu.
 
 Siapkan CSV train/eval terpisah dengan kolom `review_text,aspect,sentiment`; labelnya `not_mentioned`, `negative`, `neutral`, atau `positive`. Pisahkan produk eval dari train dan pastikan keempat kelas terwakili.
 

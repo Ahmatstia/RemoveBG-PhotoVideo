@@ -9,7 +9,7 @@ apps/
     api.py                      # App composition and existing media API
     modules/decision_support/   # New analytics feature, kept independent of media workflows
       presentation/             # FastAPI router and request/response contracts
-      application/              # CSV import, review analysis, recommendations
+      application/              # CSV import and review analysis
       domain/                   # Taxonomy and text rules
       infrastructure/           # SQLite schema and repositories
       integrations/ml/          # Local model adapter
@@ -25,10 +25,11 @@ ml/
 ## Boundaries
 
 - Keep the existing media tools in their current backend and UI flows; the new feature has its own route, API prefix, database, and feature UI.
-- The first category is TWS, but code and route names describe the capability rather than a specific catalog entity.
+- CSV category values define the catalog categories, allowing products with different specifications to remain separate.
 - SQLite stores imported source observations locally. CSV import validates and previews rows before committing them.
-- SAW recommendation logic is in the application layer and reports criterion contributions and evidence coverage.
-- IndoBERT inference is behind an ML adapter. The model is unavailable until the user supplies a labeled dataset and trains it; no predictions are fabricated.
+- The initial UI supports catalog analysis and evidence comparison; preference-based ranking is deferred until category-specific criteria are defined.
+- IndoBERT inference currently uses a TWS aspect taxonomy only. Other categories need their own labeled data and model before AI analysis is enabled.
+- Data collection currently uses user-provided CSV. Scraping requires a selected source and review of its allowed access and terms.
 
 ## Current entry points
 

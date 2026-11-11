@@ -90,7 +90,8 @@ def import_rows(rows, row_status, batch_id, source_name, imported_at):
                 if row_status.get(row["line"]) != "valid":
                     continue
                 db.execute("INSERT OR IGNORE INTO categories(key, name, aspects_json) VALUES (?, ?, ?)",
-                           (row["category"], row["category"].replace("_", " ").title(), json.dumps(ASPECTS)))
+                           (row["category"], row["category"].replace("_", " ").title(),
+                            json.dumps(ASPECTS if row["category"] == "tws" else {})))
                 before = db.total_changes
                 db.execute("""INSERT OR IGNORE INTO products(category_key, brand, model, variant, specs_json, created_at)
                     VALUES (?, ?, ?, ?, ?, ?)""", (row["category"], row["brand"], row["model"], row["variant"], json.dumps(row["specs"]), imported_at))
@@ -128,40 +129,10 @@ def import_rows(rows, row_status, batch_id, source_name, imported_at):
             "reviews_added": reviews_added, "prices_added": prices_added}
 
 
-def recommendation_candidates(category):
-    with database() as db:
-        rows = db.execute("""SELECT p.id, p.category_key, p.brand, p.model, p.variant, p.specs_json,
-            AVG(r.rating) average_rating,
-            (SELECT price FROM price_observations po WHERE po.product_id=p.id ORDER BY observed_at DESC, id DESC LIMIT 1) latest_price,
-            (SELECT currency FROM price_observations po WHERE po.product_id=p.id ORDER BY observed_at DESC, id DESC LIMIT 1) currency,
-            (SELECT observed_at FROM price_observations po WHERE po.product_id=p.id ORDER BY observed_at DESC, id DESC LIMIT 1) price_observed_at,
-            COUNT(DISTINCT r.id) review_count FROM products p LEFT JOIN reviews r ON r.product_id=p.id
-            WHERE p.category_key=? GROUP BY p.id""", (category,)).fetchall()
-        candidates = []
-        for raw in rows:
-            product = dict(raw)
-            product["specs"] = json.loads(product.pop("specs_json"))
-            preds = db.execute("""SELECT pred.aspect_key, pred.sentiment, COUNT(*) n
-                FROM review_aspect_predictions pred JOIN reviews r ON r.id=pred.review_id
-                WHERE r.product_id=? AND pred.model_version=(SELECT model_version FROM review_aspect_predictions
-                    WHERE review_id IN (SELECT id FROM reviews WHERE product_id=?) ORDER BY analyzed_at DESC LIMIT 1)
-                GROUP BY pred.aspect_key, pred.sentiment""", (product["id"], product["id"])).fetchall()
-            grouped = {}
-            for pred in preds:
-                grouped.setdefault(pred["aspect_key"], {"positive": 0, "neutral": 0, "negative": 0, "n": 0})
-                grouped[pred["aspect_key"]][pred["sentiment"]] += pred["n"]
-                grouped[pred["aspect_key"]]["n"] += pred["n"]
-            product["aspect_scores"] = {
-                key: round(100 * (value["positive"] + 0.5 * value["neutral"]) / value["n"], 1)
-                for key, value in grouped.items() if value["n"] >= 3
-            }
-            candidates.append(product)
-    return candidates
-
-
 def pending_reviews(model_version, limit):
     with database() as db:
-        return [dict(row) for row in db.execute("""SELECT r.id, r.text FROM reviews r WHERE NOT EXISTS (
+        return [dict(row) for row in db.execute("""SELECT r.id, r.text FROM reviews r JOIN products p ON p.id=r.product_id
+            WHERE p.category_key='tws' AND NOT EXISTS (
             SELECT 1 FROM review_analysis_runs run WHERE run.review_id=r.id AND run.model_version=?)
             ORDER BY r.id LIMIT ?""", (model_version, limit))]
 

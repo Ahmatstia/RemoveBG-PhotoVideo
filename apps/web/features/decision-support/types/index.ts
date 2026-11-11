@@ -4,17 +4,12 @@ export type Product = {
   latest_price: number | null; currency: string | null; price_observed_at: string | null;
 };
 
+export type Category = { key: string; name: string; product_count: number };
+
 export type ImportPreview = {
   source_name: string; rows_seen: number; accepted: number; duplicates: number;
   rejected: number; distinct_products: number;
   rows: { line: number; status: string; reason: string }[];
-};
-
-export type RankingItem = {
-  rank: number; id: number; brand: string; model: string; variant: string; score: number;
-  coverage: number; missing_criteria: string[]; contributions: Record<string, number>;
-  price: number | null; currency: string | null; price_observed_at: string | null;
-  review_count: number; average_rating: number | null;
 };
 
 export type ProductDetail = Product & {
