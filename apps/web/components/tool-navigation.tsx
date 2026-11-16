@@ -22,7 +22,7 @@ export function ToolNavigation({
   activeTool,
   onSelectTool,
 }: {
-  activeTool: MediaTool | "decision-support";
+  activeTool: MediaTool | "decision-support" | "scraping";
   onSelectTool?: (tool: MediaTool) => void;
 }) {
   return (
@@ -48,9 +48,9 @@ export function ToolNavigation({
           <a className={`tool-nav-item${activeTool === "decision-support" ? " active" : ""}`} aria-current={activeTool === "decision-support" ? "page" : undefined} href="/decision-support">
             <span className="tool-nav-icon"><ChartNoAxesCombined size={15} /></span>Analisis &amp; perbandingan
           </a>
-          <span className="tool-nav-item unavailable" aria-disabled="true" title="Fitur scraping belum tersedia">
-            <span className="tool-nav-icon"><Database size={15} /></span>Scraping data <small>Segera</small>
-          </span>
+          <a className={`tool-nav-item${activeTool === "scraping" ? " active" : ""}`} aria-current={activeTool === "scraping" ? "page" : undefined} href="/scraping">
+            <span className="tool-nav-icon"><Database size={15} /></span>Scraping ulasan Shopee
+          </a>
         </div>
       </details>
     </nav>

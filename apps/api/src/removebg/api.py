@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from removebg.application.service import run_photo, run_video
+from removebg.application.shopee_scraping import run_shopee_scrape
 from removebg.application.transcription import run_youtube_transcription
 from removebg.application.youtube_download import run_instagram_photo_download, run_tiktok_photo_download, run_tiktok_video_download, run_video_download
 from removebg.config import OUTPUTS, ROOT, clear_outputs, prepare_dirs
@@ -259,6 +260,29 @@ def run_job(job, payload):
                     )
                     files = {"result": register_file(job, "result", result["path"], Path(result["path"]).name, inline=True)}
                     metadata = {"title": result["title"], "size": result["size"]}
+            elif kind == "scraping":
+                url = str(payload.get("url", ""))
+                result = run_shopee_scrape(
+                    url=url,
+                    max_reviews=int(payload.get("limit", 50)),
+                    star_filter=int(payload.get("star", 0)),
+                    with_media_only=bool(payload.get("media_only", False)),
+                    with_comment_only=bool(payload.get("comment_only", False)),
+                    cookies=str(payload.get("cookie", "")),
+                    use_browser=bool(payload.get("use_browser", False)),
+                    output_name=payload.get("name", ""),
+                    progress=progress,
+                    cancel=cancel,
+                )
+                files = {
+                    "csv": register_file(job, "csv", result["path_csv"], Path(result["path_csv"]).name),
+                    "json": register_file(job, "json", result["path_json"], Path(result["path_json"]).name),
+                }
+                metadata = {
+                    "title": result["title"],
+                    "total": result["total_reviews"],
+                    "preview_rows": result.get("preview_rows", []),
+                }
             else:
                 raise ValueError("Jenis pekerjaan tidak dikenal.")
             with state_lock:
@@ -294,12 +318,12 @@ def create_job(payload: str = Form(...)):
     except json.JSONDecodeError as error:
         raise HTTPException(400, "Data pekerjaan tidak valid.") from error
     kind = data.get("kind")
-    if kind not in {"video", "photo", "transcription", "download"}:
+    if kind not in {"video", "photo", "transcription", "download", "scraping"}:
         raise HTTPException(400, "Jenis pekerjaan tidak dikenal.")
     if kind in UPLOAD_TYPES and not data.get("upload_id"):
         raise HTTPException(400, "Pilih file terlebih dahulu.")
-    if kind in {"transcription", "download"} and not str(data.get("url", "")).strip():
-        raise HTTPException(400, "Masukkan tautan video terlebih dahulu.")
+    if kind in {"transcription", "download", "scraping"} and not str(data.get("url", "")).strip():
+        raise HTTPException(400, "Masukkan tautan terlebih dahulu.")
     job_id = uuid.uuid4().hex
     job = {
         "id": job_id,
