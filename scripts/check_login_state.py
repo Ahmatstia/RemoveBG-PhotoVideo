@@ -43,3 +43,4 @@ with sync_playwright() as p:
     page.screenshot(path='data/logged_in_check.png')
     print('Screenshot saved: data/logged_in_check.png')
     browser.close()
+    
