@@ -12,6 +12,7 @@ FORMATS = {
     "Terbaik": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
     "1080p": "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best[height<=1080]",
     "720p": "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[height<=720]",
+    "Audio": "bestaudio/best",
 }
 
 
@@ -104,6 +105,14 @@ def download_video(url, platform, quality, folder: Path, progress, cancel: threa
         "retries": 3,
         "progress_hooks": [report_download],
     }
+    if quality == "Audio":
+        options["format"] = "bestaudio/best"
+        options.pop("merge_output_format", None)
+        options["postprocessors"] = [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": "mp3",
+            "preferredquality": "192",
+        }]
     try:
         with YoutubeDL(options) as downloader:
             info = downloader.extract_info(platform_url(url, platform), download=True)
@@ -123,7 +132,7 @@ def download_video(url, platform, quality, folder: Path, progress, cancel: threa
             raise
         except Exception as retry_error:
             raise ValueError(f"Gagal mengunduh video {platform}: {retry_error}") from retry_error
-    files = [path for path in folder.glob("video.*") if path.is_file() and path.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov", ".m4v"}]
+    files = [path for path in folder.glob("video.*") if path.is_file() and path.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov", ".m4v", ".mp3", ".m4a"}]
     if not files:
         raise ValueError("File video tidak ditemukan setelah proses unduh.")
     return files[0], info.get("title") or f"Video {platform}"

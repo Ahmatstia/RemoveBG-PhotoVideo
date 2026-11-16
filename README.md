@@ -4,10 +4,19 @@ Web app Windows lokal untuk menghapus latar video/foto, membuat transkrip multil
 
 ## Menjalankan
 
-1. Instal Python 3.11, [uv](https://docs.astral.sh/uv/getting-started/installation/), [Node.js 22+](https://nodejs.org/), dan driver NVIDIA yang mendukung CUDA 12.8.
-2. Buka PowerShell di folder proyek, lalu jalankan ./setup.ps1 sekali. Ini memasang dependensi Python, membangun frontend Next.js, dan memasang PyTorch CUDA yang berukuran beberapa GB.
-3. Klik dua kali run.bat atau jalankan ./run.ps1. Browser membuka web app lokal di http://127.0.0.1:7860.
-4. Gunakan navigasi **Video**, **Foto**, **Transkrip**, dan **Downloader**.
+### Cara 1: Terminal Interactive CLI (Paling Cepat & Ringan) — REKOMENDASI
+- Cukup klik dua kali file **`mytools.bat`** di folder utama project (atau jalankan `.venv\Scripts\python cli.py` di terminal).
+- Menu interaktif langsung terbuka seketika (zero-latency):
+  - **[1] Scraping Ulasan Shopee**: Ekstrak ulasan, rating, foto/video, varian ke CSV & JSON akurat.
+  - **[2] Video Downloader (Batch Multi-URL)**: Download puluhan link video sekaligus dalam 1 kali jalan (TikTok tanpa watermark, YouTube MP4/MP3, Instagram Reels, FB, Twitter/X).
+  - **[3] Hapus Background Foto**: AI InSPyReNet untuk 1 foto atau 1 folder penuh sekaligus (Batch Transparent PNG).
+  - **[4] Transkrip Audio / Video**: Whisper AI ke file teks TXT & subtitle SRT.
+  - **[5] SPK / Decision Support**: Matriks TOPSIS, SAW, AHP.
+  - **[6] Buka Web UI**: Membuka dashboard grafis di browser.
+
+### Cara 2: Web App Lokal (Browser UI)
+- Klik dua kali **`run.bat`** atau jalankan `./run.ps1`. Browser membuka web app lokal di `http://127.0.0.1:7860`.
+- Gunakan navigasi sidebar **Video**, **Foto**, **Transkrip**, **Downloader**, **Scraping**, dan **SPK**.
 
 ### Mode pengembangan Next.js
 
