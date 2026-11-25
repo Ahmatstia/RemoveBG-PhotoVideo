@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { JobActivityCenter } from "@/components/job-activity-center";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id">
-      <body>{children}</body>
+      <body>{children}<JobActivityCenter /></body>
     </html>
   );
 }

@@ -14,6 +14,12 @@
 .pd-hero-mark { display: flex; align-items: center; gap: 12px; min-width: 150px; padding: 15px; border: 1px solid var(--border); border-radius: 15px; background: #fff; color: var(--accent-dark); }
 .pd-hero-mark span { color: var(--muted); font-size: 11px; line-height: 1.5; }.pd-hero-mark b { color: var(--text); font-size: 14px; }
 .pd-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 18px; align-items: stretch; }
+.pd-processing-status { display: flex; align-items: center; gap: 12px; margin: 16px 0; padding: 13px 15px; border: 1px solid #c8e7df; border-radius: 11px; background: #f1faf7; color: var(--accent-dark); }
+.pd-processing-status>div { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.pd-processing-status b { font-size: 12px; }
+.pd-processing-status span { color: var(--muted); font-size: 10px; }
+.pd-processing-status>i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pd-processing-pulse 1.5s ease-in-out infinite; }
+@keyframes pd-processing-pulse { 50% { opacity: .35; } }
 .pd-panel { padding: 22px; border: 1px solid var(--border); border-radius: 17px; background: var(--surface); box-shadow: var(--shadow); }
 .pd-section-title,.pd-section-title>div { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pd-section-title>div { justify-content: flex-start; }.pd-section-title h2 { margin: 0; font-size: 17px; letter-spacing: -.02em; }

@@ -3,10 +3,11 @@
 import {
   ArrowDownToLine, Check, ChevronRight, Database, ExternalLink,
   FileSpreadsheet, FileText, Info, LoaderCircle, LockKeyhole, Monitor,
-  Scissors, ShieldCheck, Sparkles, Star, WandSparkles, X
+  Scissors, ShieldCheck, Sparkles, Star, Terminal, WandSparkles, X
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { ToolNavigation } from "@/components/tool-navigation";
+import { TerminalProcessingView } from "@/components/terminal-processing-view";
 
 type FileResult = { url: string; filename: string };
 type PreviewReview = {
@@ -25,10 +26,15 @@ type PreviewReview = {
 type ScrapingJob = {
   id: string;
   kind: "scraping";
-  state: "queued" | "completed" | "failed" | "cancelled";
+  state: "queued" | "running" | "completed" | "failed" | "cancelled";
   progress: number;
   message: string;
   error?: string | null;
+  logs?: Array<{ time: string; progress: number; message: string }>;
+  created_at?: number;
+  started_at?: number | null;
+  finished_at?: number | null;
+  progress_updated_at?: number;
   result?: {
     title?: string;
     total?: number;
@@ -68,6 +74,7 @@ export default function ScrapingPage() {
   const [job, setJob] = useState<ScrapingJob | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showResult, setShowResult] = useState(false);
 
   useEffect(() => {
     fetch(API + "/api/health")
@@ -81,7 +88,40 @@ export default function ScrapingPage() {
     // Load saved cookie from localStorage
     const savedCookie = localStorage.getItem("shopee_cookie");
     if (savedCookie) setCookie(savedCookie);
+
+    const requestedJob = new URLSearchParams(window.location.search).get("job");
+    if (requestedJob) {
+      fetch(API + "/api/jobs/" + requestedJob, { cache: "no-store" }).then(responseJson).then((restored: ScrapingJob) => {
+        if (restored.kind === "scraping") {
+          setJob(restored);
+          setShowResult(false);
+        }
+      }).catch(() => setError("Pekerjaan ini sudah tidak tersedia. Mungkin server lokal telah dimulai ulang."));
+    }
   }, []);
+
+  useEffect(() => {
+    if (!job || ["completed", "failed", "cancelled"].includes(job.state)) return;
+    let active = true;
+    let timer: number;
+    const poll = async () => {
+      try {
+        const response = await fetch(API + "/api/jobs/" + job.id, { cache: "no-store" });
+        if (response.status === 404) {
+          if (active) setJob((current) => current?.id === job.id ? { ...current, state: "failed", error: "Pekerjaan tidak lagi tersedia di backend." } : current);
+          return;
+        }
+        const snapshot: ScrapingJob = await responseJson(response);
+        if (!active) return;
+        setJob((current) => current?.id === job.id ? snapshot : current);
+        if (["queued", "running"].includes(snapshot.state)) timer = window.setTimeout(poll, 800);
+      } catch {
+        if (active) timer = window.setTimeout(poll, 1500);
+      }
+    };
+    poll();
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [job?.id, job?.state]);
 
   function handleCookieChange(val: string) {
     setCookie(val);
@@ -97,6 +137,7 @@ export default function ScrapingPage() {
 
     setError("");
     setJob(null);
+    setShowResult(false);
     setBusy(true);
 
     const payload = {
@@ -118,20 +159,6 @@ export default function ScrapingPage() {
         await fetch(API + "/api/jobs", { method: "POST", body: form })
       );
       setJob(created);
-
-      for (;;) {
-        const snapshot: ScrapingJob = await responseJson(
-          await fetch(API + "/api/jobs/" + created.id, { cache: "no-store" })
-        );
-        setJob(snapshot);
-        if (snapshot.state === "completed") break;
-        if (snapshot.state === "failed") {
-          setError(snapshot.error || "Proses scraping gagal.");
-          break;
-        }
-        if (snapshot.state === "cancelled") break;
-        await new Promise((resolve) => window.setTimeout(resolve, 800));
-      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Proses scraping gagal.");
     } finally {
@@ -146,6 +173,7 @@ export default function ScrapingPage() {
   }
 
   const jobResult = job?.state === "completed" ? job.result : null;
+  const currentJobActive = job?.state === "queued" || job?.state === "running";
   const files = jobResult?.files;
   const previewRows = jobResult?.preview_rows || [];
 
@@ -356,9 +384,9 @@ export default function ScrapingPage() {
                 <button
                   className="primary-button"
                   type="submit"
-                  disabled={busy || !url.trim()}
+                  disabled={busy || currentJobActive || !url.trim()}
                 >
-                  {busy ? (
+                  {busy || currentJobActive ? (
                     <>
                       <LoaderCircle size={16} className="spin" /> Sedang mengambil ulasan…
                     </>
@@ -368,7 +396,7 @@ export default function ScrapingPage() {
                     </>
                   )}
                 </button>
-                {busy && (
+                {currentJobActive && (
                   <button
                     className="danger-button"
                     type="button"
@@ -380,34 +408,13 @@ export default function ScrapingPage() {
                 )}
               </div>
 
-              {job && (
-                <div className="progress-card" aria-live="polite" style={{ marginTop: 16 }}>
-                  <div className="progress-top">
-                    <span>{job.message}</span>
-                    <strong>{Math.round(job.progress * 100)}%</strong>
-                  </div>
-                  <div className="progress-track">
-                    <div
-                      className="progress-fill"
-                      style={{ width: Math.max(3, job.progress * 100) + "%" }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {error && (
+              {error && job?.state !== "failed" && (
                 <div className="error-box" role="alert" style={{ marginTop: 14 }}>
                   {error}
                 </div>
               )}
 
-              {job?.state === "cancelled" && (
-                <div className="error-box" style={{ marginTop: 14 }}>
-                  Proses dibatalkan.
-                </div>
-              )}
-
-              {jobResult && (
+              {showResult && jobResult && (
                 <div className="success-box" style={{ marginTop: 14 }}>
                   <Check size={14} style={{ verticalAlign: "-3px", marginRight: 5 }} />
                   Berhasil mengekstrak <strong>{jobResult.total} ulasan</strong>!
@@ -424,12 +431,40 @@ export default function ScrapingPage() {
               <div className="result-heading">
                 <h3>Hasil &amp; Unduhan</h3>
                 <span className="result-meta">
-                  {jobResult ? `${jobResult.total} ulasan siap diunduh` : "Hasil akan muncul di sini"}
+                  {jobResult && showResult
+                    ? `${jobResult.total} ulasan siap diunduh`
+                    : busy || (job && !showResult)
+                    ? "Konsol scraping aktif"
+                    : "Hasil akan muncul di sini"}
                 </span>
               </div>
 
-              {jobResult && files ? (
+              {busy || (job && !showResult) ? (
+                <TerminalProcessingView
+                  job={job}
+                  busy={busy}
+                  featureTitle="Scraping Ulasan Shopee"
+                  onViewResult={() => setShowResult(true)}
+                  onCancel={cancelJob}
+                />
+              ) : showResult && jobResult && files ? (
                 <div style={{ display: "grid", gap: 16 }}>
+                  <div className="result-nav-bar">
+                    <div className="result-status-pill">
+                      <Check size={14} strokeWidth={3} />
+                      <span>{jobResult.total} ulasan berhasil diekstrak</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-show-terminal"
+                      onClick={() => setShowResult(false)}
+                      title="Kembali ke tampilan terminal log"
+                    >
+                      <Terminal size={13} />
+                      <span>Lihat Log Terminal</span>
+                    </button>
+                  </div>
+
                   {/* Download Cards */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     {files.csv && (

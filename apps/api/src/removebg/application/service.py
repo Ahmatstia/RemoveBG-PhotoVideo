@@ -161,7 +161,7 @@ def run_video(path, mode, quality, points, export, preview_only, cancel, progres
         release_gpu()
 
 
-def run_photo(path, mode, quality, points, model_factory=create_model, output_name=None):
+def run_photo(path, mode, quality, points, model_factory=create_model, output_name=None, cancel=None, progress=None):
     from removebg.application.transcription import unload_transcriber
 
     unload_transcriber()
@@ -172,13 +172,27 @@ def run_photo(path, mode, quality, points, model_factory=create_model, output_na
         validate_points(points, rgb.shape[1], rgb.shape[0])
     model = None
     try:
+        if progress:
+            progress(0.05, "Memuat model penghapus latar…")
+        if cancel and cancel.is_set():
+            raise Cancelled()
         model = model_factory(mode, quality, points)
+        if progress:
+            progress(0.35, "Model siap. Menganalisis subjek dan tepi foto…")
+        if cancel and cancel.is_set():
+            raise Cancelled()
         foreground, alpha = model.process(rgb)
+        if cancel and cancel.is_set():
+            raise Cancelled()
+        if progress:
+            progress(0.9, "Menyimpan foto PNG dengan latar transparan…")
         prepare_dirs()
         folder = OUTPUTS / uuid.uuid4().hex[:12]
         folder.mkdir()
         output = folder / (safe_name(output_name, "foto") + ".png")
         Image.fromarray(np.dstack((foreground, alpha))).save(output)
+        if progress:
+            progress(1, "Foto selesai diproses.")
         return str(output)
     finally:
         del model

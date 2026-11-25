@@ -50,9 +50,17 @@ def download_audio(url, folder: Path, progress, cancel: threading.Event):
         source = matches[0]
 
     wav = folder / "audio.wav"
+    convert_to_wav(source, wav, progress, cancel)
+    source.unlink(missing_ok=True)
+    return wav, {"title": info.get("title") or "Video YouTube", "id": info.get("id"), "url": info.get("webpage_url") or youtube_url(url)}
+
+
+def convert_to_wav(source: Path, wav: Path, progress, cancel: threading.Event):
+    wav.parent.mkdir(parents=True, exist_ok=True)
+    progress(0.30, "Mengekstrak audio dan menyiapkan WAV mono 16 kHz…")
     command = [imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y",
                "-i", str(source), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(wav)]
-    log_path = folder / "ffmpeg.log"
+    log_path = wav.with_suffix(".ffmpeg.log")
     with log_path.open("w+", encoding="utf-8") as log:
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                    stderr=log, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
@@ -68,6 +76,4 @@ def download_audio(url, folder: Path, progress, cancel: threading.Event):
             if process.poll() is None:
                 process.terminate()
                 process.wait()
-    source.unlink(missing_ok=True)
     log_path.unlink(missing_ok=True)
-    return wav, {"title": info.get("title") or "Video YouTube", "id": info.get("id"), "url": info.get("webpage_url") or youtube_url(url)}

@@ -32,6 +32,9 @@ export default function DecisionSupportPage() {
   const [modelReady, setModelReady] = useState(false);
   const [modelMacroF1, setModelMacroF1] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyMessage, setBusyMessage] = useState("");
+  const [busyStartedAt, setBusyStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -57,20 +60,26 @@ export default function DecisionSupportPage() {
     }).catch(() => {});
   }, [loadCategories, loadProducts]);
 
+  useEffect(() => {
+    if (!busy) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [busy]);
+
   async function selectFile(event: ChangeEvent<HTMLInputElement>) {
     const picked = event.target.files?.[0] || null;
     event.target.value = "";
     setFile(picked); setPreview(null); setError(""); setMessage("");
     if (!picked) return;
-    setBusy(true);
+    setBusy(true); setBusyMessage("Memeriksa struktur CSV dan baris yang bisa diimpor…"); setBusyStartedAt(Date.now());
     try { setPreview(await previewImport(picked)); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Tidak bisa membaca CSV."); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setBusyMessage(""); setBusyStartedAt(null); }
   }
 
   async function importFile() {
     if (!file) return;
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setBusyMessage("Menyimpan baris valid ke database lokal…"); setBusyStartedAt(Date.now()); setError(""); setMessage("");
     try {
       const result = await commitImport(file);
       setMessage(`Import selesai: ${result.products_added} produk, ${result.reviews_added} ulasan, ${result.prices_added} observasi harga.`);
@@ -78,7 +87,7 @@ export default function DecisionSupportPage() {
       await loadCategories();
       await loadProducts();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Import gagal."); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setBusyMessage(""); setBusyStartedAt(null); }
   }
 
   async function openDetail(id: number) {
@@ -88,13 +97,13 @@ export default function DecisionSupportPage() {
   }
 
   async function analyzeReviews() {
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setBusyMessage("Menyiapkan model dan menganalisis ulasan yang belum diproses…"); setBusyStartedAt(Date.now()); setError(""); setMessage("");
     try {
       const result = await requestReviewAnalysis();
       setMessage(`Analisis selesai: ${result.reviews_analyzed} ulasan, ${result.aspect_predictions} prediksi aspek.`);
       await loadProducts();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Analisis belum tersedia."); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setBusyMessage(""); setBusyStartedAt(null); }
   }
 
   function toggleCompare(id: number) {
@@ -153,6 +162,7 @@ export default function DecisionSupportPage() {
       </section>
     </div>
 
+    {busy && <div className="pd-processing-status" role="status" aria-live="polite"><LoaderCircle size={17} className="spin" /><div><b>{busyMessage}</b><span>Permintaan masih berjalan · {busyStartedAt ? `${Math.floor((now - busyStartedAt) / 60000).toString().padStart(2, "0")}:${Math.floor((now - busyStartedAt) / 1000 % 60).toString().padStart(2, "0")}` : "00:00"}</span></div><i /></div>}
     {message && <div className="pd-notice"><Check size={16} />{message}</div>}{error && <div className="pd-error" role="alert">{error}</div>}
 
     <section className="pd-panel pd-catalog">

@@ -14,16 +14,18 @@ type Tool = { id: MediaTool; label: string; icon: typeof Clapperboard };
 const mediaTools: Tool[] = [
   { id: "video", label: "Hapus latar video", icon: Clapperboard },
   { id: "photo", label: "Hapus latar foto", icon: ImagePlus },
-  { id: "transcription", label: "Transkripsi YouTube", icon: AudioLines },
+  { id: "transcription", label: "Transkripsi", icon: AudioLines },
   { id: "download", label: "Unduh media", icon: ArrowDownToLine },
 ];
 
 export function ToolNavigation({
   activeTool,
   onSelectTool,
+  disabled = false,
 }: {
   activeTool: MediaTool | "decision-support" | "scraping";
   onSelectTool?: (tool: MediaTool) => void;
+  disabled?: boolean;
 }) {
   return (
     <nav className="tool-navigation" aria-label="Kategori alat">
@@ -35,7 +37,7 @@ export function ToolNavigation({
             const active = activeTool === id;
             const content = <><span className="tool-nav-icon"><Icon size={15} /></span>{label}</>;
             return onSelectTool ? (
-              <button key={id} type="button" className={`tool-nav-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined} onClick={() => onSelectTool(id)}>{content}</button>
+              <button key={id} type="button" className={`tool-nav-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined} disabled={disabled} onClick={() => onSelectTool(id)}>{content}</button>
             ) : (
               <a key={id} className={`tool-nav-item${active ? " active" : ""}`} aria-current={active ? "page" : undefined} href={`/?tool=${id}`}>{content}</a>
             );
